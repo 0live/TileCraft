@@ -1,2 +1,2 @@
 # MapStudio
-Mapcraft was already taken
+Mapcraft and Mapbox were already taken

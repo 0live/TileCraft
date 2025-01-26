@@ -1,4 +1,6 @@
-DOCKER_COMPOSE = docker compose
+-include .env
+
+DOCKER_COMPOSE = docker compose --env-file .env --env-file .env.local
 IMPOSM_CONTAINER = imposm
 
 build:
@@ -6,6 +8,3 @@ build:
 
 start:
 	$(DOCKER_COMPOSE) up -d
-
-init-osm-db:
-	$(DOCKER_COMPOSE) exec $(IMPOSM_CONTAINER) /srv/imposm/scripts/init_db.sh

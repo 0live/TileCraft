@@ -26,3 +26,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  
+  maputnik:
+    image: maputnik/editor:latest
+    container_name: maputnik
+    ports:
+      - "8888:8888"
+
+  file-server:
+    image: nginx:alpine
+    container_name: file-server
+    volumes:
+      - ./test_files:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"

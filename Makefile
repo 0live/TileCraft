@@ -8,3 +8,6 @@ build:
 
 start:
 	$(DOCKER_COMPOSE) up -d
+
+stop:
+	$(DOCKER_COMPOSE) down -v

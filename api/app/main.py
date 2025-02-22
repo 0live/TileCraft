@@ -1,15 +1,22 @@
-from typing import Union
-
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-app = FastAPI()
+from app.core.database import init_db
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+app = FastAPI(
+    title="MapStudio API",
+    summary="Love and Mappyness",
+    version="0.0.1",
+    lifespan=lifespan,
+)
+
+# @app.on_event("startup")
+# def on_startup():
+#     init_db()

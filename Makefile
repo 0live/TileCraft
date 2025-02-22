@@ -11,3 +11,6 @@ start:
 
 stop:
 	$(DOCKER_COMPOSE) down -v
+
+genpkey:
+	openssl genpkey -algorithm RSA -out ./api/app/services/auth/private_key.pem

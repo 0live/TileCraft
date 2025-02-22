@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
+import os
 from typing import Optional
 from jose import jwt
 
-SECRET_KEY = "your_secret_key"
-ALGORITHM = "HS256"
+file_path = os.path.join(os.path.dirname(__file__), "private_key.pem")
+with open(file_path, "r") as f:
+    SECRET_KEY = f.read()
+ALGORITHM = "RS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 
 

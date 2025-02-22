@@ -6,7 +6,7 @@ from sqlmodel import select
 from app.db.users import User
 from app.core.database import SessionDep
 from app.models.users import UserCreate, UserRead
-from app.services.auth import create_access_token
+from app.services.auth.auth import create_access_token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

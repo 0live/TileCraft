@@ -11,7 +11,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="MapStudio API",
+    title="TileCraft API",
     summary="Love and Mappyness",
     version="0.0.1",
     lifespan=lifespan,

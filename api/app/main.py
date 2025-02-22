@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
 from app.core.database import init_db
+from app.endpoints.users import userRouter
 
 
 @asynccontextmanager
@@ -17,6 +17,4 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# @app.on_event("startup")
-# def on_startup():
-#     init_db()
+app.include_router(userRouter)

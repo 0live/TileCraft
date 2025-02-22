@@ -16,7 +16,6 @@ engine = create_engine(DATABASE_URL, echo=True, future=True)
 
 
 def init_db():
-    SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
 
 

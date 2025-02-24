@@ -3,7 +3,7 @@ from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import Depends
 from sqlmodel import SQLModel, Session, create_engine
-from ..db.users import User  # noqa: F401
+from app.db.users import User  # noqa: F401
 
 
 load_dotenv()

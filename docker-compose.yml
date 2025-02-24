@@ -13,6 +13,7 @@ services:
       - PYTHONUNBUFFERED=1
     env_file:
       - .env
+      - .env.local
     depends_on:
       postgis:
         condition: service_healthy

@@ -21,3 +21,7 @@ Linting and formatting is managed with Ruff extension. Update settings.json as f
     }
 }
 ```
+# Alembic
+Migrations are done with Alembic
+- make init-alembic
+- edit sqlalchemy.url in alembic.ini

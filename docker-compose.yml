@@ -20,7 +20,9 @@ services:
   
   postgis:
     image: postgis/postgis:16-master 
-    env_file: .env
+    env_file: 
+      - .env
+      - .env.local
     volumes:
       - ./docker/postgis/data:/var/lib/postgresql/data
       - ./docker/postgis/init_hstore.sql:/docker-entrypoint-initdb.d/init_hstore.sql  # Initialisation script

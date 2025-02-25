@@ -21,8 +21,7 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
     if session.exec(select(User).where(User.username == user.username)).first():
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = pwd_context.hash(user.password)
-    user_dict = user.model_dump()
-    user_dict.pop("password")
+    user_dict = user.model_dump(exclude={"password"})
     new_user = User(**user_dict, hashed_password=hashed_password)
     session.add(new_user)
     session.commit()
@@ -63,4 +62,4 @@ async def get_current_user(
     user = get_user_by_username(session, username)
     if user is None:
         raise credentials_exception
-    return UserRead.model_validate(user.model_dump())
+    return UserRead(**user.model_dump())

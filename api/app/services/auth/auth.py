@@ -6,9 +6,6 @@ import jwt
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 
-# file_path = os.path.join(os.path.dirname(__file__), "private_key.pem")
-# with open(file_path, "r") as f:
-#     SECRET_KEY = f.read()
 load_dotenv()
 SECRET_KEY = os.getenv("PRIVATE_KEY")
 if not SECRET_KEY:
@@ -26,8 +23,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, str(SECRET_KEY), algorithm=ALGORITHM)
 
 
 def decode_token(token: str):
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])

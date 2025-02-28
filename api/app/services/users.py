@@ -2,9 +2,10 @@ from typing import Annotated, Optional
 from fastapi import HTTPException, status, Depends
 from sqlmodel import select
 
+from app.models.user_roles import UserRole
 from app.db.users import User
 from app.core.database import SessionDep
-from app.models.users import UserCreate, UserRead
+from app.models.users import UserCreate, UserRead, UserUpdate
 from app.services.auth.auth import (
     create_access_token,
     pwd_context,
@@ -20,9 +21,10 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
         raise HTTPException(status_code=400, detail="Email already registered")
     if session.exec(select(User).where(User.username == user.username)).first():
         raise HTTPException(status_code=400, detail="Username already registered")
+
     hashed_password = pwd_context.hash(user.password)
-    user_dict = user.model_dump(exclude={"password"})
-    new_user = User(**user_dict, hashed_password=hashed_password)
+    user_dict = user.model_dump(exclude={"password", "roles"})
+    new_user = User(**user_dict, roles=[UserRole.USER], hashed_password=hashed_password)
     session.add(new_user)
     session.commit()
     session.refresh(new_user)
@@ -63,3 +65,30 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return UserRead(**user.model_dump())
+
+
+def update_user(
+    user_id: int,
+    user: UserUpdate,
+    session: SessionDep,
+    current_user: UserRead,
+) -> Optional[UserRead]:
+    if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user_db = session.exec(select(User).where(User.id == user_id)).first()
+    if not user_db:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_dict = user.model_dump(exclude_unset=True, exclude={"password", "roles"})
+    if user.password is not None:
+        hashed_password = pwd_context.hash(user.password)
+        user_dict.update({"hashed_password": hashed_password})
+    if user.roles is not None:
+        if UserRole.ADMIN not in current_user.roles:
+            raise HTTPException(status_code=403, detail="Only admin can change roles")
+        user_dict["roles"] = user.roles
+    for key, value in user_dict.items():
+        setattr(user_db, key, value)
+    session.add(user_db)
+    session.commit()
+    session.refresh(user_db)
+    return UserRead(**user_db.model_dump(exclude={"hashed_password"}))

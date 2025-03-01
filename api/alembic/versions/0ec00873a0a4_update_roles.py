@@ -18,7 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE userrole ADD VALUE 'MANAGE_GROUPS';")
+    op.execute("ALTER TYPE userrole ADD VALUE 'MANAGE_TEAMS';")
     op.execute("ALTER TYPE userrole ADD VALUE 'MANAGE_ATLASES';")
     op.execute("ALTER TYPE userrole ADD VALUE 'LOAD_DATA';")
     op.execute("ALTER TYPE userrole ADD VALUE 'LOAD_ICONS';")

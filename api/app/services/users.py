@@ -2,6 +2,7 @@ from typing import Annotated, Optional
 from fastapi import HTTPException, status, Depends
 from sqlmodel import select
 
+from app.db.teams import Team
 from app.models.user_roles import UserRole
 from app.db.users import User
 from app.core.database import SessionDep
@@ -23,7 +24,7 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
         raise HTTPException(status_code=400, detail="Username already registered")
 
     hashed_password = pwd_context.hash(user.password)
-    user_dict = user.model_dump(exclude={"password", "roles"})
+    user_dict = user.model_dump(exclude={"password", "roles", "teams"})
     new_user = User(**user_dict, roles=[UserRole.USER], hashed_password=hashed_password)
     session.add(new_user)
     session.commit()
@@ -33,7 +34,9 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
 
 def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
     result = session.exec(select(User).where(User.username == username))
-    return result.first()
+    user = result.first()
+    print(user)
+    return user
 
 
 def authenticate_user(
@@ -76,16 +79,33 @@ def update_user(
     if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
         raise HTTPException(status_code=403, detail="Forbidden")
     user_db = session.exec(select(User).where(User.id == user_id)).first()
+
     if not user_db:
         raise HTTPException(status_code=404, detail="User not found")
-    user_dict = user.model_dump(exclude_unset=True, exclude={"password", "roles"})
+    user_dict = user.model_dump(
+        exclude_unset=True, exclude={"password", "roles", "teams"}
+    )
+
     if user.password is not None:
         hashed_password = pwd_context.hash(user.password)
         user_dict.update({"hashed_password": hashed_password})
+
     if user.roles is not None:
         if UserRole.ADMIN not in current_user.roles:
             raise HTTPException(status_code=403, detail="Only admin can change roles")
         user_dict["roles"] = user.roles
+
+    if user.teams is not None:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
+        ):
+            raise HTTPException(
+                status_code=403, detail="You don't have permission to change teams"
+            )
+        teams = session.exec(select(Team).where(Team.id.in_(user.teams))).all()  # type: ignore
+        user_db.teams = list(teams)
+
     for key, value in user_dict.items():
         setattr(user_db, key, value)
     session.add(user_db)

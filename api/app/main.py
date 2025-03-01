@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.database import init_db
 from app.endpoints.users import userRouter
+from app.endpoints.teams import teamsRouter
 
 
 @asynccontextmanager
@@ -18,3 +19,4 @@ app = FastAPI(
 )
 
 app.include_router(userRouter)
+app.include_router(teamsRouter)

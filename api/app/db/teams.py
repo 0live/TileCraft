@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from sqlmodel import Field, SQLModel, Relationship
 
-from app.db.users import User
+if TYPE_CHECKING:
+    from app.db.users import User
 
 
 class UserTeamLink(SQLModel, table=True):
@@ -12,4 +13,4 @@ class UserTeamLink(SQLModel, table=True):
 class Team(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
-    users: list[User] = Relationship(back_populates="teams", link_model=UserTeamLink)
+    users: list["User"] = Relationship(back_populates="teams", link_model=UserTeamLink)

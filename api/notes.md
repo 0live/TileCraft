@@ -29,3 +29,8 @@ Migrations are done with Alembic
 ```python
 from app.db.users import User  # noqa
 ```
+Then run make commands:
+```bash
+make create-migration
+make apply-migration
+```

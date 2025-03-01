@@ -4,4 +4,7 @@ from enum import Enum
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     USER = "USER"
-    MICHEL = "MICHEL"
+    MANAGE_GROUPS = "MANAGE_GROUPS"
+    MANAGE_ATLASES = "MANAGE_ATLASES"
+    LOAD_DATA = "LOAD_DATA"
+    LOAD_ICONS = "LOAD_ICONS"

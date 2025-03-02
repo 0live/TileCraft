@@ -1,15 +1,22 @@
-from typing import Union
-
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+from app.core.database import init_db
+from app.endpoints.users import userRouter
+from app.endpoints.teams import teamsRouter
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="TileCraft API",
+    summary="Love and Mappyness",
+    version="0.0.1",
+    lifespan=lifespan,
+)
+
+app.include_router(userRouter)
+app.include_router(teamsRouter)

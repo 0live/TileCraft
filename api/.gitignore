@@ -1,5 +1,6 @@
+private_key.pem
 # Python virtual environments
-venv/
+.venv/
 env/
 ENV/
 

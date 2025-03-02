@@ -1,6 +1,9 @@
 fastapi[standard]
 sqlmodel
-bcrypt
-python-jose
+python-dotenv
 psycopg2-binary
+bcrypt
 passlib[bcrypt]
+pyjwt
+cryptography
+alembic

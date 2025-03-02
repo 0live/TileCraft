@@ -8,17 +8,24 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./api/app:/code/app/
+      - ./api:/code
     environment:
       - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+      - .env.local
+    depends_on:
+      postgis:
+        condition: service_healthy
   
   postgis:
-    image: postgis/postgis:16-master  # Nom personnalisé de l'image
-    container_name: geostudio_postgis
-    env_file: .env
+    image: postgis/postgis:16-master 
+    env_file: 
+      - .env
+      - .env.local
     volumes:
-      - ./docker/postgis/data:/var/lib/postgresql/data  # Nom du volume personnalisé
-      - ./docker/postgis/init_hstore.sql:/docker-entrypoint-initdb.d/init_hstore.sql  # Ajout du script d'initialisation
+      - ./docker/postgis/data:/var/lib/postgresql/data
+      - ./docker/postgis/init_hstore.sql:/docker-entrypoint-initdb.d/init_hstore.sql  # Initialisation script
     ports:
       - "5432:5432"
     healthcheck:

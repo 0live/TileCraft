@@ -3,7 +3,8 @@ from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import Depends
 from sqlmodel import SQLModel, Session, create_engine
-from app.db.users import User  # noqa: F401
+
+from app.core.mock_data import create_mock_data
 
 
 load_dotenv()
@@ -17,6 +18,12 @@ engine = create_engine(DATABASE_URL, echo=True, future=True)
 
 def init_db():
     SQLModel.metadata.create_all(engine)
+
+
+def mock_database():
+    SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)
+    create_mock_data(engine)
 
 
 def get_session():

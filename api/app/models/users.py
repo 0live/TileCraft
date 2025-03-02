@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.teams import TeamRead
 from app.models.user_roles import UserRole
@@ -10,6 +10,7 @@ class UserBase(BaseModel):
     username: str
     roles: List[UserRole] = [UserRole.USER]
     teams: List[TeamRead] = []
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserCreate(UserBase):

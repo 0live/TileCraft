@@ -35,7 +35,6 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
 def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
     result = session.exec(select(User).where(User.username == username))
     user = result.first()
-    print(user)
     return user
 
 
@@ -67,7 +66,7 @@ async def get_current_user(
     user = get_user_by_username(session, username)
     if user is None:
         raise credentials_exception
-    return UserRead(**user.model_dump())
+    return UserRead.model_validate(user)
 
 
 def update_user(
@@ -103,12 +102,16 @@ def update_user(
             raise HTTPException(
                 status_code=403, detail="You don't have permission to change teams"
             )
-        teams = session.exec(select(Team).where(Team.id.in_(user.teams))).all()  # type: ignore
-        user_db.teams = list(teams)
+        for team_id in user.teams:
+            team = session.exec(select(Team).where(Team.id == team_id)).first()
+            if team:
+                user_db.teams.append(team)
+            else:
+                raise HTTPException(status_code=404, detail="Team not found")
 
     for key, value in user_dict.items():
         setattr(user_db, key, value)
     session.add(user_db)
     session.commit()
     session.refresh(user_db)
-    return UserRead(**user_db.model_dump(exclude={"hashed_password"}))
+    return UserRead.model_validate(user_db)

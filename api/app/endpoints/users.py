@@ -1,6 +1,7 @@
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlmodel import select
 from app.db.users import User
 from app.services.users import (
     authenticate_user,
@@ -40,3 +41,16 @@ def patch_user(
     current_user: UserRead = Depends(get_current_user),
 ):
     return update_user(user_id, user, session, current_user)
+
+
+@userRouter.get("/all", response_model=List[UserRead])
+def get_all_users(session: SessionDep):
+    return session.exec(select(User)).all()
+
+
+@userRouter.get("/{user_id}", response_model=UserRead)
+def get_user(user_id: int, session: SessionDep):
+    user = session.exec(select(User).where(User.id == user_id)).first()
+    if not user:
+        return {"detail": "User not found"}
+    return UserRead.model_validate(user)

@@ -19,7 +19,14 @@ def create_map(map: MapBase, session: SessionDep, current_user: UserRead) -> Map
         )
     if session.exec(select(Map).where(Map.name == map.name)).first():
         raise HTTPException(status_code=400, detail="This name already exists")
-    new_map = Map(**map.model_dump())
+    new_map = Map(**map.model_dump(exclude={"atlases"}))
+    if map.atlases is not None:
+        for atlas_id in map.atlases:
+            atlas = session.exec(select(Atlas).where(Atlas.id == atlas_id)).first()
+            if atlas:
+                new_map.atlases.append(atlas)
+            else:
+                raise HTTPException(status_code=404, detail="Atlas not found")
     session.add(new_map)
     session.commit()
     session.refresh(new_map)

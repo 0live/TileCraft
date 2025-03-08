@@ -2,8 +2,14 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlmodel import select
 from app.db.maps import Map
-from app.db.atlases import Atlas
-from app.models.atlases import AtlasBase, AtlasRead, AtlasUpdate
+from app.db.atlases import Atlas, AtlasTeamLink
+from app.models.atlases import (
+    AtlasBase,
+    AtlasRead,
+    AtlasTeamLinkCreate,
+    AtlasTeamLinkRead,
+    AtlasUpdate,
+)
 from app.models.user_roles import UserRole
 from app.models.users import UserRead
 from app.db.teams import Team
@@ -46,17 +52,6 @@ def update_atlas(
 
     atlas_dict = atlas.model_dump(exclude_unset=True, exclude={"teams", "maps"})
 
-    if atlas.teams is not None:
-        for team_id in atlas.teams:
-            if team_id in atlas_db.teams:
-                atlas_db.teams.remove(team_id)
-            else:
-                team = session.exec(select(Team).where(Team.id == team_id)).first()
-                if team:
-                    atlas_db.teams.append(team)
-                else:
-                    raise HTTPException(status_code=404, detail="Team not found")
-
     if atlas.maps is not None:
         for map_id in atlas.maps:
             if map_id in atlas_db.maps:
@@ -74,3 +69,41 @@ def update_atlas(
     session.commit()
     session.refresh(atlas_db)
     return AtlasRead.model_validate(atlas_db)
+
+
+def manage_atlas_team_link(
+    link: AtlasTeamLinkCreate,
+    session: SessionDep,
+    current_user: UserRead,
+):
+    if all(
+        role not in current_user.roles
+        for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to add a team to an atlas",
+        )
+    team = session.exec(select(Team).where(Team.id == link.team_id)).first()
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    existing_link = session.exec(
+        select(AtlasTeamLink).where(
+            AtlasTeamLink.atlas_id == link.atlas_id
+            and AtlasTeamLink.team_id == link.team_id
+        )
+    ).first()
+    if existing_link:
+        existing_link.can_manage_atlas = bool(link.can_manage_atlas)
+        existing_link.can_create_maps = bool(link.can_manage_atlas)
+        existing_link.can_edit_maps = bool(link.can_manage_atlas)
+        session.add(existing_link)
+        session.commit()
+        session.refresh(existing_link)
+        return AtlasTeamLinkRead(**existing_link.model_dump())
+    else:
+        new_link = AtlasTeamLink(**link.model_dump())
+        session.add(new_link)
+        session.commit()
+        session.refresh(new_link)
+        return AtlasTeamLinkRead(**new_link.model_dump())

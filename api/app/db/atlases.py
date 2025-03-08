@@ -9,9 +9,9 @@ if TYPE_CHECKING:
 class AtlasTeamLink(SQLModel, table=True):
     atlas_id: int = Field(foreign_key="atlas.id", primary_key=True)
     team_id: int = Field(foreign_key="team.id", primary_key=True)
-    can_manage_atlas: bool
-    can_create_maps: bool
-    can_edit_maps: bool
+    can_manage_atlas: bool = False
+    can_create_maps: bool = False
+    can_edit_maps: bool = False
 
 
 class Atlas(SQLModel, table=True):

@@ -15,7 +15,7 @@ mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 
 
 @mapsRouter.get("", response_model=List[MapRead])
-def get_all_atlases(
+def get_all_maps(
     session: SessionDep, current_user: UserRead = Depends(get_current_user)
 ):
     if current_user is None:
@@ -26,7 +26,7 @@ def get_all_atlases(
 
 
 @mapsRouter.post("", response_model=AtlasRead)
-def register(
+def create(
     map: MapBase,
     session: SessionDep,
     current_user: UserRead = Depends(get_current_user),
@@ -35,7 +35,7 @@ def register(
 
 
 @mapsRouter.patch("/{map_id}", response_model=MapRead)
-def patch_user(
+def patch_map(
     map_id: int,
     map: MapUpdate,
     session: SessionDep,

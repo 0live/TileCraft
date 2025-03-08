@@ -25,7 +25,7 @@ def get_all_teams(
 
 
 @teamsRouter.post("", response_model=TeamRead)
-def register(
+def create(
     user: TeamBase,
     session: SessionDep,
     current_user: UserRead = Depends(get_current_user),

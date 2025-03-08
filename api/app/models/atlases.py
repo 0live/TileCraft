@@ -32,3 +32,19 @@ class AtlasUpdate(BaseModel):
     description: Optional[str] = Field(default=None)
     teams: Optional[List[int]] = Field(default=None)
     maps: Optional[List[int]] = Field(default=None)
+
+
+class AtlasTeamLinkRead(BaseModel):
+    atlas_id: int
+    team_id: int
+    can_manage_atlas: bool
+    can_create_maps: bool
+    can_edit_maps: bool
+
+
+class AtlasTeamLinkCreate(BaseModel):
+    atlas_id: int
+    team_id: int
+    can_manage_atlas: Optional[bool] = Field(default=False)
+    can_create_maps: Optional[bool] = Field(default=False)
+    can_edit_maps: Optional[bool] = Field(default=False)

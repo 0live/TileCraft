@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.database import init_db
 from app.endpoints.users import userRouter
 from app.endpoints.teams import teamsRouter
+from app.endpoints.atlases import atlasesRouter
 
 
 @asynccontextmanager
@@ -20,3 +21,4 @@ app = FastAPI(
 
 app.include_router(userRouter)
 app.include_router(teamsRouter)
+app.include_router(atlasesRouter)

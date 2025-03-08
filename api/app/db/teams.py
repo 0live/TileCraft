@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional, List
 from sqlmodel import Field, SQLModel, Relationship
+from app.db.atlases import Atlas, AtlasTeamLink
 
 if TYPE_CHECKING:
     from app.db.users import User
@@ -14,3 +15,6 @@ class Team(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     users: List["User"] = Relationship(back_populates="teams", link_model=UserTeamLink)
+    atlases: List["Atlas"] = Relationship(
+        back_populates="teams", link_model=AtlasTeamLink
+    )

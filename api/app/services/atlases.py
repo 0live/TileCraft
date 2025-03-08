@@ -95,8 +95,8 @@ def manage_atlas_team_link(
     ).first()
     if existing_link:
         existing_link.can_manage_atlas = bool(link.can_manage_atlas)
-        existing_link.can_create_maps = bool(link.can_manage_atlas)
-        existing_link.can_edit_maps = bool(link.can_manage_atlas)
+        existing_link.can_create_maps = bool(link.can_create_maps)
+        existing_link.can_edit_maps = bool(link.can_edit_maps)
         session.add(existing_link)
         session.commit()
         session.refresh(existing_link)

@@ -2,18 +2,19 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 
-from app.services.atlases import create_atlas, update_atlas
-from app.models.atlases import AtlasBase, AtlasRead, AtlasUpdate
-from app.db.atlases import Atlas
+from app.services.maps import create_map, update_map
+from app.db.maps import Map
+from app.models.maps import MapRead, MapBase, MapUpdate
+from app.models.atlases import AtlasRead
 from app.models.users import UserRead
 from app.services.users import get_current_user
 from app.core.database import SessionDep
 
 
-atlasesRouter = APIRouter(prefix="/atlases", tags=["Atlases"])
+mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 
 
-@atlasesRouter.get("", response_model=List[AtlasRead])
+@mapsRouter.get("", response_model=List[MapRead])
 def get_all_atlases(
     session: SessionDep, current_user: UserRead = Depends(get_current_user)
 ):
@@ -21,23 +22,23 @@ def get_all_atlases(
         raise HTTPException(
             status_code=403, detail="Permission denied, you must be logged in"
         )
-    return session.exec(select(Atlas)).all()
+    return session.exec(select(Map)).all()
 
 
-@atlasesRouter.post("", response_model=AtlasRead)
+@mapsRouter.post("", response_model=AtlasRead)
 def register(
-    atlas: AtlasBase,
+    map: MapBase,
     session: SessionDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return create_atlas(atlas, session, current_user)
+    return create_map(map, session, current_user)
 
 
-@atlasesRouter.patch("/{atlas_id}", response_model=AtlasRead)
+@mapsRouter.patch("/{map_id}", response_model=MapRead)
 def patch_user(
-    atlas_id: int,
-    atlas: AtlasUpdate,
+    map_id: int,
+    map: MapUpdate,
     session: SessionDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return update_atlas(atlas_id, atlas, session, current_user)
+    return update_map(map_id, map, session, current_user)

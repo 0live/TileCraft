@@ -104,11 +104,14 @@ def update_user(
                 status_code=403, detail="You don't have permission to change teams"
             )
         for team_id in user.teams:
-            team = session.exec(select(Team).where(Team.id == team_id)).first()
-            if team:
-                user_db.teams.append(team)
+            if team_id in user_db.teams:
+                user_db.teams.remove(team_id)
             else:
-                raise HTTPException(status_code=404, detail="Team not found")
+                team = session.exec(select(Team).where(Team.id == team_id)).first()
+                if team:
+                    user_db.teams.append(team)
+                else:
+                    raise HTTPException(status_code=404, detail="Team not found")
 
     for key, value in user_dict.items():
         setattr(user_db, key, value)

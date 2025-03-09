@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from app.services.users import manage_google_user
 from app.core.database import SessionDep
-from app.services.auth import oauth
+from api.app.services.auth.sso import oauth
 
 
 googleRouter = APIRouter(prefix="/google", tags=["Google SSO"])

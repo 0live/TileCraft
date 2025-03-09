@@ -6,6 +6,7 @@ import jwt
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from authlib.integrations.starlette_client import OAuth
+from app.models.users import UserRead
 from app.models.auth import Token
 
 load_dotenv()
@@ -32,8 +33,8 @@ def decode_token(token: str):
     return jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])
 
 
-def get_token(username: str) -> Token:
-    token = create_access_token(data={"sub": username})
+def get_token(user: UserRead) -> Token:
+    token = create_access_token(data={**user.model_dump()})
     return Token(access_token=token, token_type="bearer")
 
 

@@ -40,9 +40,8 @@ if not SECRET_KEY:
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
-    max_age=3600,
-    same_site="lax",
-    https_only=False,
+    same_site="lax" if ENV == "dev" else "strict",
+    https_only=False if ENV == "dev" else True,
 )
 
 app.include_router(userRouter)

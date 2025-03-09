@@ -45,7 +45,7 @@ def authenticate_user(
 ) -> Optional[Token]:
     user: Optional[User] = get_user_by_username(session, username)
     if user and pwd_context.verify(password, user.hashed_password):
-        return get_token(username)
+        return get_token(UserRead.model_validate(user))
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
@@ -134,7 +134,7 @@ async def manage_google_user(request: Request, session: SessionDep):
 
     existing_user = session.exec(select(User).where(User.email == email)).first()
     if existing_user:
-        return get_token(existing_user.username)
+        return get_token(UserRead.model_validate(existing_user))
     if not existing_user:
         user_data = {
             "email": email,
@@ -148,6 +148,6 @@ async def manage_google_user(request: Request, session: SessionDep):
         session.commit()
         session.refresh(new_user)
         existing_user = new_user
-        return get_token(new_user.username)
+        return get_token(UserRead.model_validate(new_user))
 
     raise HTTPException(status_code=500, detail="Error on Google Authentication")

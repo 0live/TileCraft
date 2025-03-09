@@ -1,5 +1,6 @@
+import secrets
 from typing import Annotated, Optional
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, Request, status, Depends
 from sqlmodel import select
 
 from app.db.teams import Team
@@ -8,13 +9,14 @@ from app.db.users import User
 from app.core.database import SessionDep
 from app.models.users import UserCreate, UserRead, UserUpdate
 from app.services.auth.auth import (
-    create_access_token,
+    get_token,
     pwd_context,
     oauth2_scheme,
     decode_token,
 )
 from app.models.auth import Token
 from jwt.exceptions import InvalidTokenError
+from app.services.auth import oauth
 
 
 def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
@@ -43,8 +45,7 @@ def authenticate_user(
 ) -> Optional[Token]:
     user: Optional[User] = get_user_by_username(session, username)
     if user and pwd_context.verify(password, user.hashed_password):
-        token = create_access_token(data={"sub": username})
-        return Token(access_token=token, token_type="bearer")
+        return get_token(username)
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
@@ -115,3 +116,35 @@ def update_user(
     session.commit()
     session.refresh(user_db)
     return UserRead.model_validate(user_db)
+
+
+async def manage_google_user(request: Request, session: SessionDep):
+    if not oauth.google:
+        raise HTTPException(status_code=502, detail="Google OAuth configuration failed")
+
+    auth_result = await oauth.google.authorize_access_token(request)
+    user = auth_result.get("userinfo")
+    email = user.get("email")
+
+    if not user or not user.email:
+        raise HTTPException(status_code=502, detail="Google OAuth data parsing failed")
+
+    existing_user = session.exec(select(User).where(User.email == email)).first()
+    if existing_user:
+        return get_token(existing_user.username)
+    if not existing_user:
+        user_data = {
+            "email": email,
+            "username": user.get("name") or email.split("@")[0],
+        }
+        hashed_password = pwd_context.hash(secrets.token_urlsafe(15))
+        new_user = User(
+            **user_data, roles=[UserRole.USER], hashed_password=hashed_password
+        )
+        session.add(new_user)
+        session.commit()
+        session.refresh(new_user)
+        existing_user = new_user
+        return get_token(new_user.username)
+
+    raise HTTPException(status_code=500, detail="Error on Google Authentication")

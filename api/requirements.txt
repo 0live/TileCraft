@@ -7,3 +7,5 @@ passlib[bcrypt]
 pyjwt
 cryptography
 alembic
+authlib
+itsdangerous

@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import jwt
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
+from authlib.integrations.starlette_client import OAuth
+from app.models.auth import Token
 
 load_dotenv()
 SECRET_KEY = os.getenv("PRIVATE_KEY")
@@ -28,3 +30,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def decode_token(token: str):
     return jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])
+
+
+def get_token(username: str) -> Token:
+    token = create_access_token(data={"sub": username})
+    return Token(access_token=token, token_type="bearer")
+
+
+ACTIVATE_GOOGLE_SSO = os.getenv("ACTIVATE_GOOGLE_SSO", "false").lower() == "true"
+oauth = OAuth()
+if ACTIVATE_GOOGLE_SSO:
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise ValueError("Google SSO keys are missing")
+    oauth.register(
+        name="google",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile", "response_type": "code"},
+    )

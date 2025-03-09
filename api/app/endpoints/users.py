@@ -1,6 +1,7 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+
 from sqlmodel import select
 from app.db.users import User
 from app.services.users import (

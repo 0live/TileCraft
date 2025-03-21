@@ -16,7 +16,7 @@ from app.services.auth.auth import (
 )
 from app.models.auth import Token
 from jwt.exceptions import InvalidTokenError
-from api.app.services.auth.sso import oauth
+from app.services.auth.sso import oauth
 
 
 def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:

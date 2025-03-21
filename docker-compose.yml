@@ -25,7 +25,7 @@ services:
       - .env.local
     volumes:
       - ./docker/postgis/data:/var/lib/postgresql/data
-      - ./docker/postgis/init_hstore.sql:/docker-entrypoint-initdb.d/init_hstore.sql  # Initialisation script
+      - ./docker/postgis/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Initialisation script
     ports:
       - "5432:5432"
     healthcheck:

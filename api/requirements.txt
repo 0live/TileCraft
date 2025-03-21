@@ -9,3 +9,6 @@ cryptography
 alembic
 authlib
 itsdangerous
+httpx
+pytest
+testcontainers

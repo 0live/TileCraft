@@ -25,22 +25,12 @@ def postgres_container():
         port=POSTGRES_CONTAINER_PORT,
     )
     with postgres:
-        # os.environ["DB_CONN"] = postgres.get_connection_url()
-        # os.environ["DB_HOST"] = postgres.get_container_host_ip()
-        # os.environ["DB_PORT"] = str(postgres.get_exposed_port(5432))
-        # os.environ["DB_USERNAME"] = POSTGRES_USER
-        # os.environ["DB_PASSWORD"] = POSTGRES_PASSWORD
-        # os.environ["DB_NAME"] = POSTGRES_DATABASE
-
-        # print("DBCONN1" + os.environ["DB_CONN"])
-
         wait_for_logs(
             container=postgres,
             predicate="database system is ready to accept connections",
             timeout=30,
             interval=0.5,
         )
-
         yield postgres
 
 
@@ -62,3 +52,47 @@ def client_fixture(session: Session):
     client = TestClient(app)
     yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="user_data")
+def user_data():
+    return {
+        "email": "test@test.com",
+        "username": "test_user",
+        "password": "test_password",
+    }
+
+
+@pytest.fixture(name="existing_users")
+def existing_users():
+    return [
+        {
+            "email": "user@test.com",
+            "username": "user",
+            "password": "user",
+        },
+        {
+            "email": "editor@test.com",
+            "username": "editor",
+            "password": "editor",
+        },
+        {
+            "email": "admin@test.com",
+            "username": "admin",
+            "password": "admin",
+        },
+    ]
+
+
+@pytest.fixture(name="get_token")
+def token_factory_fixture(client: TestClient):
+    def _get_token(username="test_user", password="test_password"):
+        response = client.post(
+            "/users/login",
+            data={"username": username, "password": password},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 200
+        return response.json()["access_token"]
+
+    return _get_token

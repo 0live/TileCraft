@@ -8,7 +8,6 @@ from app.services.auth.auth import pwd_context
 
 
 def create_mock_data(engine: Engine):
-    print("ENGINE IN MOCK DATA", engine)
     with Session(engine) as session:
         team1 = Team(name="Atlas editor")
         team2 = Team(name="Atlas viewer")

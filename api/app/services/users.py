@@ -35,9 +35,7 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
 
 
 def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
-    result = session.exec(select(User).where(User.username == username))
-    user = result.first()
-    return user
+    return session.exec(select(User).where(User.username == username)).first()
 
 
 def authenticate_user(
@@ -59,7 +57,7 @@ async def get_current_user(
     )
     try:
         payload = decode_token(token)
-        username = payload.get("sub")
+        username = payload.get("username")
         if username is None:
             raise credentials_exception
     except InvalidTokenError:

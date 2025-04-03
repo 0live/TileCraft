@@ -18,7 +18,7 @@ stop:
 genpkey:
 	echo "PRIVATE_KEY=$$(openssl rand -hex 32)" >> .env.local
 
-exec-tests:
+launch-tests:
 	cd api/ && pytest
 
 create-app: build start genpkey init-alembic

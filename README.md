@@ -1,4 +1,4 @@
 # TileCraft Project
 
 
-<img src="/img/Tilecraft_stack.png"  width="600">
+![TileCraft stack](img/Tilecraft_stack.png)

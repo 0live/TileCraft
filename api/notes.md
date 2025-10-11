@@ -1,4 +1,5 @@
 # Initialisation:
+--To change for uv
 ```bash
 python -m venv .venv
 source .venv/bin/activate

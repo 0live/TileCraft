@@ -4,6 +4,10 @@
 ![TileCraft stack](img/Tilecraft_stack.png)
 
 
-Todo: use uv instead of pip
-Set docker images tag instead of latest
-Finish tests
+Todo: 
+* use uv instead of pip
+* use psycopg3[async] instead of 2
+* set all endpoints as async
+* set singleton for config / environment variables
+* Set docker images tag instead of latest
+* Finish tests

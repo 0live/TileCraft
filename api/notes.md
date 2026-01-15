@@ -1,14 +1,7 @@
 # Initialisation:
---To change for uv
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Verify install: 
-```python -m pip show fastapi```
+cd api/ && uv sync
+```dock
 
 # Python Linter/Formatter
 Linting and formatting is managed with Ruff extension. Install extension and update settings.json as follow:

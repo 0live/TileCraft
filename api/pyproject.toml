@@ -1,0 +1,22 @@
+[project]
+name = "tilecraft"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.18.1",
+    "authlib>=1.6.6",
+    "fastapi[standard]>=0.128.0",
+    "passlib[bcrypt]>=1.7.4",
+    "psycopg2-binary>=2.9.11",
+    "pyjwt>=2.10.1",
+    "python-dotenv>=1.2.1",
+    "sqlmodel>=0.0.31",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "testcontainers>=4.14.0",
+]

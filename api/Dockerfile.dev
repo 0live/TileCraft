@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # 1. Install uv ⚡
 # We copy the binary directly from the official image for speed

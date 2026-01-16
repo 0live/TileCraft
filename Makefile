@@ -1,10 +1,8 @@
 -include .env
 -include .env.local
 -include api/Makefile
--include local.mk
 
 DOCKER_COMPOSE = docker compose --env-file .env --env-file .env.local
-IMPOSM_CONTAINER = imposm
 
 build:
 	$(DOCKER_COMPOSE) build
@@ -21,4 +19,4 @@ genpkey:
 launch-tests:
 	cd api/ && pytest
 
-create-app: build start genpkey init-alembic
+create-app: genpkey build start

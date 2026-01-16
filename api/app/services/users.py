@@ -10,9 +10,9 @@ from app.core.database import SessionDep
 from app.models.users import UserCreate, UserRead, UserUpdate
 from app.services.auth.auth import (
     get_token,
-    pwd_context,
     oauth2_scheme,
     decode_token,
+    hash_password, verify_password,
 )
 from app.models.auth import Token
 from jwt.exceptions import InvalidTokenError
@@ -25,7 +25,7 @@ def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
     if session.exec(select(User).where(User.username == user.username)).first():
         raise HTTPException(status_code=400, detail="Username already registered")
 
-    hashed_password = pwd_context.hash(user.password)
+    hashed_password = hash_password(user.password)
     user_dict = user.model_dump(exclude={"password", "roles", "teams"})
     new_user = User(**user_dict, roles=[UserRole.USER], hashed_password=hashed_password)
     session.add(new_user)
@@ -42,7 +42,7 @@ def authenticate_user(
     session: SessionDep, username: str, password: str
 ) -> Optional[Token]:
     user: Optional[User] = get_user_by_username(session, username)
-    if user and pwd_context.verify(password, user.hashed_password):
+    if user and verify_password(password, user.hashed_password):
         return get_token(UserRead.model_validate(user))
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -85,7 +85,7 @@ def update_user(
     )
 
     if user.password is not None:
-        hashed_password = pwd_context.hash(user.password)
+        hashed_password = hash_password(user.password)
         user_dict.update({"hashed_password": hashed_password})
 
     if user.roles is not None:
@@ -138,7 +138,7 @@ async def manage_google_user(request: Request, session: SessionDep):
             "email": email,
             "username": user.get("name") or email.split("@")[0],
         }
-        hashed_password = pwd_context.hash(secrets.token_urlsafe(15))
+        hashed_password = hash_password(secrets.token_urlsafe(15))
         new_user = User(
             **user_data, roles=[UserRole.USER], hashed_password=hashed_password
         )

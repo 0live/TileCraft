@@ -5,7 +5,6 @@
 
 
 Todo: 
-* use uv instead of pip
 * use psycopg3[async] instead of 2
 * set all endpoints as async
 * set singleton for config / environment variables

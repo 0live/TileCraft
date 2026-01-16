@@ -4,7 +4,7 @@ from app.db.atlases import Atlas, AtlasTeamLink
 from app.db.teams import Team
 from app.db.users import User
 from app.models.user_roles import UserRole
-from app.services.auth.auth import pwd_context
+from app.services.auth.auth import hash_password
 
 
 def create_mock_data(engine: Engine):
@@ -20,20 +20,20 @@ def create_mock_data(engine: Engine):
         admin = User(
             email="admin@test.com",
             username="admin",
-            hashed_password=pwd_context.hash("admin"),
+            hashed_password=hash_password("admin"),
             roles=[UserRole.USER, UserRole.ADMIN],
         )
         editor = User(
             email="editor@test.com",
             username="editor",
-            hashed_password=pwd_context.hash("editor"),
+            hashed_password=hash_password("editor"),
             roles=[UserRole.USER, UserRole.MANAGE_ATLASES_AND_MAPS],
             teams=[team1],
         )
         user = User(
             email="user@test.com",
             username="user",
-            hashed_password=pwd_context.hash("user"),
+            hashed_password=hash_password("user"),
             roles=[UserRole.USER],
             teams=[team2],
         )

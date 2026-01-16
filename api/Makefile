@@ -1,8 +1,8 @@
 init-alembic:
-	cd api && alembic init alembic
+	cd api && uv run alembic init alembic
 
 create-migration:
-	$(DOCKER_COMPOSE) exec api alembic revision --autogenerate -m "$(m)"
+	$(DOCKER_COMPOSE) exec canopy-api uv run alembic revision --autogenerate -m "$(m)"
 
 apply-migration:
-	$(DOCKER_COMPOSE) exec api alembic upgrade head
+	$(DOCKER_COMPOSE) exec canopy-api uv run alembic upgrade head

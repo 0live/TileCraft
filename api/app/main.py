@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
-from app.core.database import init_db, mock_database
 from app.endpoints.users import userRouter
 from app.endpoints.teams import teamsRouter
 from app.endpoints.sso.google import googleRouter
@@ -19,10 +18,6 @@ if not ENV:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if ENV == "dev":
-        mock_database()
-    else:
-        init_db()
     yield
 
 

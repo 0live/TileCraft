@@ -18,13 +18,13 @@ Linting and formatting is managed with Ruff extension. Install extension and upd
 You can also set the python type checking to standard: ```"python.analysis.typeCheckingMode": "standard"```
 
 # Alembic
-Migrations are done with Alembic
-- import your SQLModel classes on env.py
+The database is managed by Alembic
+- import your SQLModel classes on /alembic/env.py
 ```python
 from app.db.users import User  # noqa
 ```
 Then run make commands:
 ```bash
-make create-migration
+make create-migration -m="Description"
 make apply-migration
 ```

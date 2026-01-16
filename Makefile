@@ -19,4 +19,4 @@ genpkey:
 launch-tests:
 	cd api/ && pytest
 
-create-app: genpkey build start
+create-app: genpkey build start setup-db

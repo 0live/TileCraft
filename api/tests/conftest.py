@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Session, create_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
-from app.core.mock_data import create_mock_data
+from app.core.seeds import run_seed
 from app.core.database import get_session
 from app.main import app
 
@@ -38,7 +38,7 @@ def postgres_container():
 def session_fixture(postgres_container: PostgresContainer):
     engine = create_engine(postgres_container.get_connection_url(), echo=True)
     SQLModel.metadata.create_all(engine)
-    create_mock_data(engine)
+    run_seed(engine)
     with Session(engine) as session:
         yield session
 

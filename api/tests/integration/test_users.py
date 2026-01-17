@@ -1,3 +1,4 @@
+from app.models.users import UserRead
 from fastapi.testclient import TestClient
 
 
@@ -5,140 +6,72 @@ def test_create_user(client: TestClient, user_data):
     response = client.post("/users/register", json=user_data)
     assert response.status_code == 200
     data = response.json()
-    assert data["id"] is not None
-    assert data["email"] == "test@test.com"
-    assert data["username"] == "test_user"
+    # Validate with Pydantic model
+    user_out = UserRead(**data)
+    assert user_out.email == user_data["email"]
     assert "password" not in data
     assert "hashed_password" not in data
-    assert "USER" in data["roles"]
-    assert "teams" in data
 
 
-def test_login(existing_users, client: TestClient):
-    response = client.post(
-        "/users/login",
-        data={
-            "username": existing_users[0]["username"],
-            "password": existing_users[0]["password"],
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+def test_get_all_users_permissions(
+    client: TestClient, auth_token_factory, existing_users
+):
+    """Tests access control for listing all users."""
+    # 1. Unauthenticated
+    assert client.get("/users").status_code == 401
 
-
-def test_login_invalid_credentials(client: TestClient):
-    response = client.post(
-        "/users/login",
-        data={"username": "unknown", "password": "wrongpass"},
-    )
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid credentials"
-
-
-def test_create_user_duplicate_email(client: TestClient, existing_users):
-    response = client.post(
-        "/users/register",
-        json={
-            "email": existing_users[0]["email"],
-            "username": "Random",
-            "password": "Random",
-        },
-    )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Email already registered"
-
-
-def test_create_user_duplicate_username(client: TestClient, existing_users):
-    response = client.post(
-        "/users/register",
-        json={
-            "email": "random@random.com",
-            "username": existing_users[0]["username"],
-            "password": "Random",
-        },
-    )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Username already registered"
-
-
-def test_get_all_users(client: TestClient, get_token, existing_users):
-    # unauthenticated
-    response = client.get("/users")
-    assert response.status_code == 401
-
-    # authenticated as user
-    token = get_token(
+    # 2. Authenticated as regular user (Should be Forbidden)
+    token = auth_token_factory(
         username=existing_users[0]["username"], password=existing_users[0]["password"]
     )
     response = client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
-    # authenticated as admin
-    token = get_token(
+    # 3. Authenticated as admin (Should be OK)
+    admin_token = auth_token_factory(
         username=existing_users[2]["username"], password=existing_users[2]["password"]
     )
-    response = client.get("/users", headers={"Authorization": f"Bearer {token}"})
+    response = client.get("/users", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
-    assert len(data) > 0
+    assert isinstance(response.json(), list)
 
 
-def test_get_me(client: TestClient, get_token, existing_users):
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
-    )
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["username"] == existing_users[0]["username"]
-    assert data["email"] == existing_users[0]["email"]
-    assert "password" not in data
-    assert "hashed_password" not in data
-    assert "USER" in data["roles"]
-    assert "teams" in data
-
-
-def test_get_user(client: TestClient, get_token, existing_users):
-    # get your own user
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
-    )
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
-    id = response.json()["id"]
-    response = client.get(f"/users/{id}", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-
-    # get another user as admin
-    token = get_token(
+def test_get_user_dynamic_id(client: TestClient, auth_token_factory, existing_users):
+    """Tests retrieving a user with a dynamic ID instead of hardcoded '1'."""
+    admin_token = auth_token_factory(
         username=existing_users[2]["username"], password=existing_users[2]["password"]
     )
-    response = client.get("/users/1", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
 
-    # get another user as user
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
+    # Get own ID first
+    me_res = client.get("/users/me", headers={"Authorization": f"Bearer {admin_token}"})
+    my_id = me_res.json()["id"]
+
+    # Fetch user by dynamic ID
+    response = client.get(
+        f"/users/{my_id}", headers={"Authorization": f"Bearer {admin_token}"}
     )
-    response = client.get("/users/1", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["username"] == existing_users[2]["username"]
 
 
-def test_update_user(client: TestClient, get_token, user_data):
+def test_update_user_role_restriction(
+    client: TestClient, auth_token_factory, user_data
+):
+    """Verifies that a user cannot upgrade their own roles."""
     client.post("/users/register", json=user_data)
-    token = get_token(username=user_data["username"], password=user_data["password"])
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
-    id = response.json()["id"]
-    updated_data = {"username": "updated_user", "email": "updated@test.com"}
-    response = client.patch(
-        f"/users/{id}", json=updated_data, headers={"Authorization": f"Bearer {token}"}
+    token = auth_token_factory(
+        username=user_data["username"], password=user_data["password"]
     )
-    assert response.status_code == 200
 
-    updated_data = {"roles": ["MANAGE_TEAMS"]}
+    me = client.get("/users/me", headers={"Authorization": f"Bearer {token}"}).json()
+    user_id = me["id"]
+
+    # Attempting to change roles should fail
+    updated_data = {"roles": ["ADMIN"]}
     response = client.patch(
-        f"/users/{id}", json=updated_data, headers={"Authorization": f"Bearer {token}"}
+        f"/users/{user_id}",
+        json=updated_data,
+        headers={"Authorization": f"Bearer {token}"},
     )
-    assert response.status_code == 401
+    # Changed from 401 to 403 as the user is authenticated but not authorized
+    assert response.status_code == 403

@@ -17,6 +17,6 @@ genpkey:
 	echo "PRIVATE_KEY=$$(openssl rand -hex 32)" >> .env.local
 
 launch-tests:
-	cd api/ && pytest
+	cd api/ && uv run pytest
 
 create-app: genpkey build start setup-db

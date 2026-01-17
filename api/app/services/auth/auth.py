@@ -1,49 +1,56 @@
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 from typing import Optional
-from dotenv import load_dotenv
-import jwt
-import bcrypt
-from fastapi.security import OAuth2PasswordBearer
-from authlib.integrations.starlette_client import OAuth
-from app.models.users import UserRead
-from app.models.auth import Token
 
-load_dotenv()
-SECRET_KEY = os.getenv("PRIVATE_KEY")
-if not SECRET_KEY:
-    raise ValueError("The SECRET_KEY environment variable is not set")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 120
+import bcrypt
+import jwt
+from authlib.integrations.starlette_client import OAuth
+from fastapi.security import OAuth2PasswordBearer
+
+from app.core.config import Settings
+from app.models.auth import Token
+from app.models.users import UserRead
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
 
+
 def hash_password(password: str) -> str:
-    pwd_bytes = password.encode('utf-8')
+    pwd_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode('utf-8')
+    return hashed.decode("utf-8")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    password_bytes = plain_password.encode('utf-8')
-    hashed_bytes = hashed_password.encode('utf-8')
+    password_bytes = plain_password.encode("utf-8")
+    hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+
+def create_access_token(
+    data: dict,
+    settings: Settings,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
     to_encode = data.copy()
     expire = datetime.now() + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, str(SECRET_KEY), algorithm=ALGORITHM)
+    return jwt.encode(
+        to_encode, str(settings.private_key), algorithm=settings.algorithm
+    )
 
 
-def decode_token(token: str):
-    return jwt.decode(token, str(SECRET_KEY), algorithms=[ALGORITHM])
+def decode_token(token: str, settings: Settings):
+    return jwt.decode(token, str(settings.private_key), algorithms=[settings.algorithm])
 
 
-def get_token(user: UserRead) -> Token:
-    token = create_access_token(data={**user.model_dump()})
+# Dans app/services/auth/auth.py
+
+
+def get_token(user: UserRead, settings) -> Token:
+    token = create_access_token(data={**user.model_dump()}, settings=settings)
     return Token(access_token=token, token_type="bearer")
 
 

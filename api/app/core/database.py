@@ -1,19 +1,22 @@
-import os
 from typing import Annotated
-from dotenv import load_dotenv
+
 from fastapi import Depends
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
+
+from app.core.config import get_settings
 
 
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("The DATABASE_URL environment variable is not set")
+def get_engine():
+    """
+    Returns the engine based on current settings.
+    During tests, this will use the overridden settings.
+    """
+    settings = get_settings()
+    return create_engine(settings.database_url, echo=True)
 
-engine = create_engine(DATABASE_URL, echo=True, future=True)
 
 def get_session():
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         yield session
 
 

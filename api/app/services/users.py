@@ -1,22 +1,28 @@
 import secrets
 from typing import Annotated, Optional
-from fastapi import HTTPException, Request, status, Depends
+
+from fastapi import Depends, HTTPException, Request, status
+from jwt.exceptions import InvalidTokenError
 from sqlmodel import select
 
-from app.db.teams import Team
-from app.models.user_roles import UserRole
-from app.db.users import User
+from app.core.config import Settings, get_settings  # Added imports
 from app.core.database import SessionDep
+from app.db.teams import Team
+from app.db.users import User
+from app.models.auth import Token
+from app.models.user_roles import UserRole
 from app.models.users import UserCreate, UserRead, UserUpdate
 from app.services.auth.auth import (
-    get_token,
-    oauth2_scheme,
     decode_token,
-    hash_password, verify_password,
+    get_token,
+    hash_password,
+    oauth2_scheme,
+    verify_password,
 )
-from app.models.auth import Token
-from jwt.exceptions import InvalidTokenError
 from app.services.auth.sso import oauth
+
+# Reusable dependency for Settings
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
@@ -39,16 +45,21 @@ def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
 
 
 def authenticate_user(
-    session: SessionDep, username: str, password: str
+    session: SessionDep,
+    username: str,
+    password: str,
+    settings: SettingsDep,
 ) -> Optional[Token]:
     user: Optional[User] = get_user_by_username(session, username)
     if user and verify_password(password, user.hashed_password):
-        return get_token(UserRead.model_validate(user))
+        return get_token(UserRead.model_validate(user), settings=settings)
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], session: SessionDep
+    token: Annotated[str, Depends(oauth2_scheme)],
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> UserRead:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -56,7 +67,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = decode_token(token)
+        payload = decode_token(token, settings=settings)
         username = payload.get("username")
         if username is None:
             raise credentials_exception
@@ -119,7 +130,11 @@ def update_user(
     return UserRead.model_validate(user_db)
 
 
-async def manage_google_user(request: Request, session: SessionDep):
+async def manage_google_user(
+    request: Request,
+    session: SessionDep,
+    settings: SettingsDep,
+):
     if not oauth.google:
         raise HTTPException(status_code=502, detail="Google OAuth configuration failed")
 
@@ -132,7 +147,8 @@ async def manage_google_user(request: Request, session: SessionDep):
 
     existing_user = session.exec(select(User).where(User.email == email)).first()
     if existing_user:
-        return get_token(UserRead.model_validate(existing_user))
+        return get_token(UserRead.model_validate(existing_user), settings=settings)
+
     if not existing_user:
         user_data = {
             "email": email,
@@ -145,7 +161,6 @@ async def manage_google_user(request: Request, session: SessionDep):
         session.add(new_user)
         session.commit()
         session.refresh(new_user)
-        existing_user = new_user
-        return get_token(UserRead.model_validate(new_user))
+        return get_token(UserRead.model_validate(new_user), settings=settings)
 
     raise HTTPException(status_code=500, detail="Error on Google Authentication")

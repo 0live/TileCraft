@@ -1,19 +1,21 @@
 from typing import Annotated, List
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-
 from sqlmodel import select
-from app.models.user_roles import UserRole
+
+from app.core.config import Settings, get_settings
+from app.core.database import SessionDep
 from app.db.users import User
+from app.models.auth import Token
+from app.models.user_roles import UserRole
+from app.models.users import UserCreate, UserRead, UserUpdate
 from app.services.users import (
     authenticate_user,
     create_user,
     get_current_user,
     update_user,
 )
-from app.core.database import SessionDep
-from app.models.users import UserRead, UserCreate, UserUpdate
-from app.models.auth import Token
 
 userRouter = APIRouter(prefix="/users", tags=["Users"])
 
@@ -57,9 +59,11 @@ def register(user: UserCreate, session: SessionDep):
 
 @userRouter.post("/login", response_model=Token)
 def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
-    return authenticate_user(session, form_data.username, form_data.password)
+    return authenticate_user(session, form_data.username, form_data.password, settings)
 
 
 @userRouter.patch("/{user_id}", response_model=UserRead)

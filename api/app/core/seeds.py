@@ -1,7 +1,9 @@
+import asyncio
 from typing import Union
 
-from sqlalchemy import Engine, text
-from sqlmodel import Session
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.atlases import Atlas, AtlasTeamLink
 from app.db.teams import Team
@@ -10,31 +12,31 @@ from app.models.user_roles import UserRole
 from app.services.auth.auth import hash_password
 
 
-def run_seed(db: Union[Engine, Session], commit: bool = True):
+async def run_seed(db: Union[AsyncEngine, AsyncSession], commit: bool = True):
     """
     Seed the database with initial mock data for development.
     Includes users, teams, and atlases with their respective links.
     """
-    if isinstance(db, Engine):
-        with Session(db) as session:
-            _seed_data(session, commit)
-    elif isinstance(db, Session):
-        _seed_data(db, commit)
+    if isinstance(db, AsyncEngine):
+        async with AsyncSession(db) as session:
+            await _seed_data(session, commit)
+    elif isinstance(db, AsyncSession):
+        await _seed_data(db, commit)
     else:
-        raise ValueError("db must be an Engine or Session")
+        raise ValueError("db must be an AsyncEngine or AsyncSession")
 
 
-def _seed_data(session: Session, commit: bool):
+async def _seed_data(session: AsyncSession, commit: bool):
     # --- Cleanup existing data (Optional but recommended for idempotency) ---
     # This prevents "UniqueViolation" errors if you run the script multiple times
     # Order matters because of Foreign Key constraints
-    session.execute(
+    await session.exec(
         text(
             'TRUNCATE TABLE userteamlink, atlasteamlink, atlasmaplink, atlas, map, team, "user" RESTART IDENTITY CASCADE;'
         )
     )
     if commit:
-        session.commit()
+        await session.commit()
 
     # --- 1. Create Teams ---
     team1 = Team(name="Atlas editor")
@@ -42,13 +44,16 @@ def _seed_data(session: Session, commit: bool):
     session.add(team1)
     session.add(team2)
     if commit:
-        session.commit()
-        session.refresh(team1)
-        session.refresh(team2)
+        await session.commit()
+        await session.refresh(team1)
+        await session.refresh(team2)
     else:
-        session.flush()
-        session.refresh(team1)
-        session.refresh(team2)
+        await session.flush()
+        await session.refresh(team1)
+        await session.refresh(team2)
+
+    team1_id = team1.id
+    team2_id = team2.id
 
     # --- 2. Create Users ---
     admin = User(
@@ -74,9 +79,9 @@ def _seed_data(session: Session, commit: bool):
 
     session.add_all([admin, editor, user])
     if commit:
-        session.commit()
+        await session.commit()
     else:
-        session.flush()
+        await session.flush()
 
     # --- 3. Create Atlases ---
     atlas1 = Atlas(name="Atlas 1", description="Only editor has access")
@@ -85,48 +90,54 @@ def _seed_data(session: Session, commit: bool):
     session.add(atlas1)
     session.add(atlas2)
     if commit:
-        session.commit()
-        session.refresh(atlas1)
-        session.refresh(atlas2)
+        await session.commit()
+        await session.refresh(atlas1)
+        await session.refresh(atlas2)
     else:
-        session.flush()
-        session.refresh(atlas1)
-        session.refresh(atlas2)
+        await session.flush()
+        await session.refresh(atlas1)
+        await session.refresh(atlas2)
+
+    atlas1_id = atlas1.id
+    atlas2_id = atlas2.id
 
     # --- 4. Create Links (Atlas <-> Team) ---
     links = [
         AtlasTeamLink(
-            atlas_id=atlas1.id,
-            team_id=team1.id,
+            atlas_id=atlas1_id,
+            team_id=team1_id,
             can_manage_atlas=True,
             can_create_maps=True,
             can_edit_maps=True,
         ),
         AtlasTeamLink(
-            atlas_id=atlas2.id,
-            team_id=team1.id,
+            atlas_id=atlas2_id,
+            team_id=team1_id,
             can_manage_atlas=True,
             can_create_maps=True,
             can_edit_maps=True,
         ),
-        AtlasTeamLink(atlas_id=atlas2.id, team_id=team2.id),
+        AtlasTeamLink(atlas_id=atlas2_id, team_id=team2_id),
     ]
 
     session.add_all(links)
     if commit:
-        session.commit()
+        await session.commit()
     else:
-        session.flush()
+        await session.flush()
 
     print("✅ Database successfully seeded with mock data.")
 
 
 if __name__ == "__main__":
     # This block is executed from the Makefile
-    try:
-        from app.core.database import get_engine
+    async def main():
+        try:
+            from app.core.database import get_engine
 
-        run_seed(get_engine(), commit=True)
-    except Exception as e:
-        print(f"❌ Error while seeding database: {e}")
-        exit(1)
+            await run_seed(get_engine(), commit=True)
+        except Exception as e:
+            print(f"❌ Error while seeding database: {e}")
+            exit(1)
+
+    asyncio.run(main())

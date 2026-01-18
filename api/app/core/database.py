@@ -1,24 +1,24 @@
 from typing import Annotated
 
 from fastapi import Depends
-from sqlmodel import Session, create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import get_settings
 
 
 def get_engine():
-    """
-    Returns the engine based on current settings.
-    During tests, this will use the overridden settings.
-    """
     settings = get_settings()
-    return create_engine(settings.database_url, echo=True)
+    return create_async_engine(str(settings.database_url), echo=True, future=True)
 
 
-def get_session():
-    with Session(get_engine()) as session:
+engine = get_engine()
+
+
+async def get_session():
+    async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
 
 
 # This Session will be used by all DB request
-SessionDep = Annotated[Session, Depends(get_session)]
+SessionDep = Annotated[AsyncSession, Depends(get_session)]

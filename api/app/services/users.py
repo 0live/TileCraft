@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from jwt.exceptions import InvalidTokenError
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from app.core.config import Settings, get_settings  # Added imports
@@ -25,32 +26,42 @@ from app.services.auth.sso import oauth
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
-def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
-    if session.exec(select(User).where(User.email == user.email)).first():
+async def create_user(user: UserCreate, session: SessionDep) -> Optional[UserRead]:
+    user_email = await session.exec(select(User).where(User.email == user.email))
+    if user_email.first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    if session.exec(select(User).where(User.username == user.username)).first():
+
+    user_username = await session.exec(
+        select(User).where(User.username == user.username)
+    )
+    if user_username.first():
         raise HTTPException(status_code=400, detail="Username already registered")
 
     hashed_password = hash_password(user.password)
     user_dict = user.model_dump(exclude={"password", "roles", "teams"})
     new_user = User(**user_dict, roles=[UserRole.USER], hashed_password=hashed_password)
     session.add(new_user)
-    session.commit()
-    session.refresh(new_user)
+    await session.commit()
+    await session.refresh(new_user)
     return UserRead(**new_user.model_dump())
 
 
-def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
-    return session.exec(select(User).where(User.username == username)).first()
+async def get_user_by_username(session: SessionDep, username: str) -> Optional[User]:
+    result = await session.exec(
+        select(User)
+        .where(User.username == username)
+        .options(selectinload(User.teams).selectinload(Team.users))
+    )
+    return result.first()
 
 
-def authenticate_user(
+async def authenticate_user(
     session: SessionDep,
     username: str,
     password: str,
     settings: SettingsDep,
 ) -> Optional[Token]:
-    user: Optional[User] = get_user_by_username(session, username)
+    user: Optional[User] = await get_user_by_username(session, username)
     if user and verify_password(password, user.hashed_password):
         return get_token(UserRead.model_validate(user), settings=settings)
     raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -73,13 +84,13 @@ async def get_current_user(
             raise credentials_exception
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user_by_username(session, username)
+    user = await get_user_by_username(session, username)
     if user is None:
         raise credentials_exception
     return UserRead.model_validate(user)
 
 
-def update_user(
+async def update_user(
     user_id: int,
     user: UserUpdate,
     session: SessionDep,
@@ -87,7 +98,9 @@ def update_user(
 ) -> Optional[UserRead]:
     if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
         raise HTTPException(status_code=403, detail="Forbidden")
-    user_db = session.exec(select(User).where(User.id == user_id)).first()
+
+    result = await session.exec(select(User).where(User.id == user_id))
+    user_db = result.first()
 
     if not user_db:
         raise HTTPException(status_code=404, detail="User not found")
@@ -116,7 +129,8 @@ def update_user(
             if team_id in user_db.teams:
                 user_db.teams.remove(team_id)
             else:
-                team = session.exec(select(Team).where(Team.id == team_id)).first()
+                team_result = await session.exec(select(Team).where(Team.id == team_id))
+                team = team_result.first()
                 if team:
                     user_db.teams.append(team)
                 else:
@@ -125,9 +139,17 @@ def update_user(
     for key, value in user_dict.items():
         setattr(user_db, key, value)
     session.add(user_db)
-    session.commit()
-    session.refresh(user_db)
-    return UserRead.model_validate(user_db)
+    await session.commit()
+    await session.refresh(user_db)
+
+    # Reload with relationships for Pydantic validation
+    result = await session.exec(
+        select(User)
+        .where(User.id == user_db.id)
+        .options(selectinload(User.teams).selectinload(Team.users))
+    )
+    user_db_loaded = result.first()
+    return UserRead.model_validate(user_db_loaded)
 
 
 async def manage_google_user(
@@ -145,7 +167,8 @@ async def manage_google_user(
     if not user or not user.email:
         raise HTTPException(status_code=502, detail="Google OAuth data parsing failed")
 
-    existing_user = session.exec(select(User).where(User.email == email)).first()
+    existing_user_result = await session.exec(select(User).where(User.email == email))
+    existing_user = existing_user_result.first()
     if existing_user:
         return get_token(UserRead.model_validate(existing_user), settings=settings)
 
@@ -159,8 +182,8 @@ async def manage_google_user(
             **user_data, roles=[UserRole.USER], hashed_password=hashed_password
         )
         session.add(new_user)
-        session.commit()
-        session.refresh(new_user)
+        await session.commit()
+        await session.refresh(new_user)
         return get_token(UserRead.model_validate(new_user), settings=settings)
 
     raise HTTPException(status_code=500, detail="Error on Google Authentication")

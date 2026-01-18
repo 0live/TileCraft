@@ -1,10 +1,14 @@
 import pytest
+import pytest_asyncio
 from app.core.config import Settings, get_settings
 from app.core.database import get_session
 from app.core.seeds import run_seed
 from app.main import app
-from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.postgres import PostgresContainer
 
@@ -40,45 +44,53 @@ def settings_fixture(postgres_container: PostgresContainer):
         postgres_user=POSTGRES_USER,
         postgres_password=POSTGRES_PASSWORD,
         postgres_db=POSTGRES_DATABASE,
-        database_url=postgres_container.get_connection_url(),
+        database_url=postgres_container.get_connection_url()
+        .replace("postgresql+psycopg2://", "postgresql+psycopg://")
+        .replace("postgresql://", "postgresql+psycopg://"),
     )
 
 
-@pytest.fixture(name="engine", scope="session")
-def engine_fixture(settings: Settings):
+@pytest_asyncio.fixture(name="engine", scope="session")
+async def engine_fixture(settings: Settings):
     """Initializes the database schema once per session."""
-    engine = create_engine(settings.database_url)
-    SQLModel.metadata.create_all(engine)
-    return engine
+    engine = create_async_engine(settings.database_url, poolclass=pool.NullPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    yield engine
+    await engine.dispose()
 
 
-@pytest.fixture(name="session")
-def session_fixture(engine):
+@pytest_asyncio.fixture(name="session")
+async def session_fixture(engine):
     """
     Wraps each test in a transaction.
     Seeds are run inside the transaction and rolled back after each test.
     """
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = Session(bind=connection)
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        # Bind session to the connection to participate in the transaction
+        session = AsyncSession(bind=connection, expire_on_commit=False)
 
-    # Run seeds inside the transaction so they are also rolled back
-    run_seed(session, commit=False)
+        # Run seeds inside the transaction
+        await run_seed(session, commit=False)
 
-    yield session
+        yield session
 
-    session.close()
-    transaction.rollback()
-    connection.close()
+        await session.close()
+        await transaction.rollback()
 
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session, settings: Settings):
-    """Configures TestClient with session and settings overrides."""
+@pytest_asyncio.fixture(name="client")
+async def client_fixture(session: AsyncSession, settings: Settings):
+    """Configures AsyncClient with session and settings overrides."""
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_settings] = lambda: settings
-    with TestClient(app) as client:
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
+
     app.dependency_overrides.clear()
 
 
@@ -101,14 +113,16 @@ def existing_users_fixture():
 
 
 @pytest.fixture(name="auth_token_factory")
-def token_factory_fixture(client: TestClient):
+def token_factory_fixture(client: AsyncClient):
     """
     Helper fixture to generate a JWT token for protected routes.
     """
 
-    def _get_token(username: str = "test_user", password: str = "test_password") -> str:
+    async def _get_token(
+        username: str = "test_user", password: str = "test_password"
+    ) -> str:
         payload = {"username": username, "password": password}
-        response = client.post(
+        response = await client.post(
             "/users/login",
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},

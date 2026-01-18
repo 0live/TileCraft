@@ -1,11 +1,9 @@
-from logging.config import fileConfig
 import os
 import sys
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,7 +21,7 @@ postgres_db = os.getenv("POSTGRES_DB", "postgres")
 default_host = "postgis" if os.path.exists("/.dockerenv") else "localhost"
 host = os.getenv("POSTGRES_HOST", default_host)
 
-db_url = f"postgresql://{postgres_user}:{postgres_password}@{host}:5432/{postgres_db}"
+db_url = f"postgresql+psycopg://{postgres_user}:{postgres_password}@{host}:5432/{postgres_db}"
 config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
@@ -40,7 +38,7 @@ naming_convention = {
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
+    "pk": "pk_%(table_name)s",
 }
 target_metadata = SQLModel.metadata
 target_metadata.naming_convention = naming_convention
@@ -49,6 +47,7 @@ target_metadata.naming_convention = naming_convention
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+
 def include_object(object, name, type_, reflected, compare_to):
     """
     Determine which database objects should be included in the autogeneration process.
@@ -56,11 +55,16 @@ def include_object(object, name, type_, reflected, compare_to):
     """
     # List of prefixes to ignore
     ignored_prefixes = ["tiger", "topology", "spatial_ref_sys"]
-    
+
     # Specific table names to ignore
     ignored_tables = [
-        "geometry_columns", "geography_columns", "spatial_ref_sys",
-        "raster_columns", "raster_overviews", "layer", "topology"
+        "geometry_columns",
+        "geography_columns",
+        "spatial_ref_sys",
+        "raster_columns",
+        "raster_overviews",
+        "layer",
+        "topology",
     ]
 
     if type_ == "table":
@@ -70,6 +74,7 @@ def include_object(object, name, type_, reflected, compare_to):
 
     return True
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
@@ -78,11 +83,12 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        include_object=include_object
+        include_object=include_object,
     )
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
@@ -94,9 +100,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
+            connection=connection,
             target_metadata=target_metadata,
-            include_object=include_object
+            include_object=include_object,
         )
 
         with context.begin_transaction():

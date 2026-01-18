@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     postgres_db: str = "default"
     postgres_host: str = "localhost"
     postgres_port: str = "5432"
-    database_url: str = "postgresql://default:default@localhost:5432/default"
+    database_url: str = "postgresql+psycopg://default:default@localhost:5432/default"
 
     model_config = SettingsConfigDict(
         env_file=("../.env", "../.env.local", ".env", ".env.local"), extra="ignore"

@@ -80,10 +80,20 @@ async def test_google_callback(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login(client: AsyncClient, auth_token_factory, existing_users):
+async def test_login(client: AsyncClient, auth_token_factory, existing_users, settings):
     """Test login via /auth/login."""
     token = await auth_token_factory(
         username=existing_users[0]["username"], password=existing_users[0]["password"]
     )
     assert token is not None
     assert len(token) > 0
+
+    # Verify token content
+    from app.core.security import decode_token
+
+    payload = decode_token(token, settings)
+
+    assert payload["username"] == existing_users[0]["username"]
+    assert payload["email"] == existing_users[0]["email"]
+    assert isinstance(payload["id"], int)
+    assert "roles" in payload

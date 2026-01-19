@@ -87,8 +87,6 @@ class UserService:
         if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        user_db = await self.get_user_by_id(user_id)
-
         # Prepare update dictionary
         update_data = user_update.model_dump(
             exclude_unset=True, exclude={"password", "roles", "teams"}

@@ -75,3 +75,41 @@ async def test_update_user_role_restriction(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_user(client: AsyncClient, auth_token_factory, existing_users):
+    """Verifies that an admin can delete a user."""
+    # 1. Login as Admin
+    admin_token = await auth_token_factory(
+        username=existing_users[2]["username"], password=existing_users[2]["password"]
+    )
+
+    # 2. Create a dummy user to delete using /auth/register
+    user_to_delete = {
+        "username": "todelete",
+        "email": "todelete@example.com",
+        "password": "password",
+    }
+    await client.post("/auth/register", json=user_to_delete)
+
+    # 3. Get the user ID
+    # Usually we'd need to fetch by username or list, let's list them
+    list_res = await client.get(
+        "/users", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    users = list_res.json()
+    target_user = next(u for u in users if u["username"] == "todelete")
+    target_id = target_user["id"]
+
+    # 4. Delete the user
+    del_res = await client.delete(
+        f"/users/{target_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert del_res.status_code == 200
+
+    # 5. Verify 404 on get
+    get_res = await client.get(
+        f"/users/{target_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert get_res.status_code == 404

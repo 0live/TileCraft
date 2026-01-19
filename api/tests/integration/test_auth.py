@@ -16,6 +16,18 @@ async def test_register_user(client: AsyncClient, user_data):
 
 
 @pytest.mark.asyncio
+async def test_register_duplicate_user(client: AsyncClient, user_data):
+    """Test user registration with existing data should fail."""
+    # Register once
+    await client.post("/auth/register", json=user_data)
+
+    # Register again with same data
+    response = await client.post("/auth/register", json=user_data)
+    assert response.status_code == 400
+    assert "already registered" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_login(client: AsyncClient, auth_token_factory, existing_users):
     """Test login via /auth/login."""
     token = await auth_token_factory(

@@ -15,6 +15,7 @@ from app.core.security import (
 )
 from app.modules.auth.schemas import Token
 from app.modules.teams.models import Team
+from app.modules.teams.repository import TeamRepository as TeamRepoDependency
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserRead, UserUpdate
@@ -23,16 +24,24 @@ from app.modules.users.schemas import UserCreate, UserRead, UserUpdate
 class UserService:
     """Service for user CRUD operations (not authentication)."""
 
-    def __init__(self, repository: UserRepository, settings: Settings):
+    def __init__(
+        self,
+        repository: UserRepository,
+        team_repository: TeamRepoDependency,
+        settings: Settings,
+    ):
         self.repository = repository
+        self.team_repository = team_repository
         self.settings = settings
 
     async def create_user(self, user: UserCreate) -> UserRead:
         """Create a new user (used for testing, prefer auth/register for production)."""
-        existing_email = await self.repository.session.exec(
+        # Check email uniqueness
+        # Although repository create might catch integrity error, explicit check is often better for error msgs
+        existing_email_user = await self.repository.session.exec(
             select(User).where(User.email == user.email)
         )
-        if existing_email.first():
+        if existing_email_user.first():
             raise HTTPException(status_code=400, detail="Email already registered")
 
         existing_username = await self.repository.get_by_username(user.username)
@@ -44,8 +53,20 @@ class UserService:
         user_data["hashed_password"] = hashed_pw
         user_data["roles"] = [UserRole.USER]
 
+        # Use repository create
         new_user = await self.repository.create(user_data)
-        return await self.get_by_username(new_user.username)
+
+        # We can return this directly as repository.create now reloads relations
+        return UserRead.model_validate(new_user)
+
+    async def get_all_users(self) -> list[User]:
+        return await self.repository.get_all()
+
+    async def get_user_by_id(self, user_id: int) -> User:
+        user = await self.repository.get(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
 
     async def get_by_username(self, username: str) -> Optional[User]:
         return await self.repository.get_by_username(username)
@@ -57,31 +78,35 @@ class UserService:
             return get_token(UserRead.model_validate(user), settings=self.settings)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    async def delete_user(self, user_id: int) -> bool:
+        return await self.repository.delete(user_id)
+
     async def update_user(
         self, user_id: int, user_update: UserUpdate, current_user: UserRead
     ) -> UserRead:
         if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        user_db = await self.repository.get_with_teams(user_id)
-        if not user_db:
-            raise HTTPException(status_code=404, detail="User not found")
+        user_db = await self.get_user_by_id(user_id)
 
-        user_dict = user_update.model_dump(
+        # Prepare update dictionary
+        update_data = user_update.model_dump(
             exclude_unset=True, exclude={"password", "roles", "teams"}
         )
 
         if user_update.password is not None:
             hashed_password = hash_password(user_update.password)
-            user_dict.update({"hashed_password": hashed_password})
+            update_data["hashed_password"] = hashed_password
 
         if user_update.roles is not None:
             if UserRole.ADMIN not in current_user.roles:
                 raise HTTPException(
                     status_code=403, detail="Only admin can change roles"
                 )
-            user_dict["roles"] = user_update.roles
+            # Ensure roles is a list
+            update_data["roles"] = user_update.roles
 
+        # Handle teams relationship
         if user_update.teams is not None:
             if all(
                 role not in current_user.roles
@@ -91,33 +116,30 @@ class UserService:
                     status_code=403, detail="You don't have permission to change teams"
                 )
 
-            current_team_ids = {t.id for t in user_db.teams}
+            # Fetch team objects
+            teams_to_link = []
             for team_id in user_update.teams:
-                if team_id in current_team_ids:
-                    team_to_remove = next(t for t in user_db.teams if t.id == team_id)
-                    user_db.teams.remove(team_to_remove)
-                else:
-                    team_result = await self.repository.session.exec(
-                        select(Team).where(Team.id == team_id)
+                team = await self.team_repository.get(team_id)
+                if not team:
+                    raise HTTPException(
+                        status_code=404, detail=f"Team {team_id} not found"
                     )
-                    team = team_result.first()
-                    if team:
-                        user_db.teams.append(team)
-                    else:
-                        raise HTTPException(status_code=404, detail="Team not found")
+                teams_to_link.append(team)
 
-        for key, value in user_dict.items():
-            setattr(user_db, key, value)
+            # We can't easily pass list of objects to 'update' via dict if we rely on
+            # Pydantic or SQLModel automatic handling usually expects IDs for foreign keys,
+            # but for Many-to-Many via SQLModel Relationship, we often need to set the list of objects on the instance.
+            # The BaseRepository.update takes a dict and does setattr.
+            # setattr(user_db, "teams", teams_to_link) will work for SQLAlchemy relationships.
+            update_data["teams"] = teams_to_link
 
-        self.repository.session.add(user_db)
-        await self.repository.session.commit()
-        await self.repository.session.refresh(user_db)
-
-        return await self.update_user_reload(user_db.id)
-
-    async def update_user_reload(self, user_id: int) -> UserRead:
-        user_db = await self.repository.get_with_teams(user_id)
-        return UserRead.model_validate(user_db)
+        # Use repository update
+        # Since we might have complex objects in update_data (teams list),
+        # let's verify BaseRepository.update handles it.
+        # BaseRepository.update: for key, value in attributes.items(): setattr(db_obj, key, value)
+        # This works perfectly for SA relationships.
+        updated_user = await self.repository.update(user_id, update_data)
+        return UserRead.model_validate(updated_user)
 
 
 # =============================================================================
@@ -129,7 +151,8 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 def get_user_service(session: SessionDep, settings: SettingsDep) -> UserService:
     repo = UserRepository(session, User)
-    return UserService(repo, settings)
+    team_repo = TeamRepoDependency(session, Team)
+    return UserService(repo, team_repo, settings)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]

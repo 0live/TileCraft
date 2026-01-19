@@ -1,9 +1,12 @@
 from typing import Any, List, Optional
 
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
 
 from app.core.repository import BaseRepository
-from app.modules.atlases.models import Atlas
+from app.modules.atlases.models import Atlas, AtlasTeamLink
+from app.modules.maps.models import Map
+from app.modules.teams.models import Team
 
 
 class AtlasRepository(BaseRepository[Atlas]):
@@ -22,6 +25,81 @@ class AtlasRepository(BaseRepository[Atlas]):
         result = await self.session.exec(query)
         return result.first()
 
-    async def get_with_relations(self, id: int) -> Optional[Atlas]:
-        """Alias for get() - kept for backwards compatibility."""
-        return await self.get(id)
+    async def update(self, id: int, attributes: dict) -> Optional[Atlas]:
+        """
+        Update an atlas.
+        Handles 'maps' specifically: toggles presence (add if missing, remove if present).
+        """
+        if "maps" in attributes:
+            map_ids = attributes.pop("maps")
+            atlas = await self.get(id)
+            if not atlas:
+                return None
+
+            current_map_ids = {m.id for m in atlas.maps}
+            for map_id in map_ids:
+                if map_id in current_map_ids:
+                    # Remove
+                    map_to_remove = next(m for m in atlas.maps if m.id == map_id)
+                    atlas.maps.remove(map_to_remove)
+                else:
+                    # Add
+                    map_result = await self.session.exec(
+                        select(Map).where(Map.id == map_id)
+                    )
+                    map_obj = map_result.first()
+                    if map_obj:
+                        atlas.maps.append(map_obj)
+                    else:
+                        raise ValueError(f"Map with id {map_id} not found")
+
+        return await super().update(id, attributes)
+
+    async def upsert_team_link(self, link_data: dict) -> AtlasTeamLink:
+        """
+        Create or update a link between an atlas and a team.
+        """
+        # Ensure team exists
+        team_id = link_data.get("team_id")
+        team_result = await self.session.exec(select(Team).where(Team.id == team_id))
+        if not team_result.first():
+            raise ValueError("Team not found")
+
+        atlas_id = link_data.get("atlas_id")
+        existing_link_result = await self.session.exec(
+            select(AtlasTeamLink).where(
+                AtlasTeamLink.atlas_id == atlas_id,
+                AtlasTeamLink.team_id == team_id,
+            )
+        )
+        existing_link = existing_link_result.first()
+
+        if existing_link:
+            for key, value in link_data.items():
+                setattr(existing_link, key, value)
+            self.session.add(existing_link)
+            await self.session.commit()
+            await self.session.refresh(existing_link)
+            return existing_link
+        else:
+            new_link = AtlasTeamLink(**link_data)
+            self.session.add(new_link)
+            await self.session.commit()
+            await self.session.refresh(new_link)
+            return new_link
+
+    async def delete_team_link(self, atlas_id: int, team_id: int) -> bool:
+        """Delete a link between an atlas and a team."""
+        link_result = await self.session.exec(
+            select(AtlasTeamLink).where(
+                AtlasTeamLink.atlas_id == atlas_id,
+                AtlasTeamLink.team_id == team_id,
+            )
+        )
+        link = link_result.first()
+        if not link:
+            return False
+
+        await self.session.delete(link)
+        await self.session.commit()
+        return True

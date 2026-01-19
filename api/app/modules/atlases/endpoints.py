@@ -53,3 +53,22 @@ async def create_link(
     current_user: UserRead = Depends(get_current_user),
 ):
     return await service.manage_atlas_team_link(link, current_user)
+
+
+@atlasesRouter.delete("/{atlas_id}")
+async def delete(
+    atlas_id: int,
+    service: AtlasServiceDep,
+    current_user: UserRead = Depends(get_current_user),
+):
+    return await service.delete_atlas(atlas_id, current_user)
+
+
+@atlasesRouter.delete("/{atlas_id}/team/{team_id}")
+async def delete_link(
+    atlas_id: int,
+    team_id: int,
+    service: AtlasServiceDep,
+    current_user: UserRead = Depends(get_current_user),
+):
+    return await service.delete_atlas_team_link(atlas_id, team_id, current_user)

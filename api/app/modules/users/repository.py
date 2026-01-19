@@ -23,6 +23,16 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.exec(query)
         return result.first()
 
+    async def get_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email with teams loaded."""
+        from sqlmodel import select
+
+        query = select(self.model).where(self.model.email == email)
+        for option in self.get_load_options():
+            query = query.options(option)
+        result = await self.session.exec(query)
+        return result.first()
+
     async def get_with_teams(self, id: int) -> Optional[User]:
         """Alias for get() - kept for backwards compatibility."""
         return await self.get(id)

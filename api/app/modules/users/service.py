@@ -2,7 +2,6 @@ from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, status
 from jwt.exceptions import InvalidTokenError
-from sqlmodel import select
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
@@ -38,10 +37,8 @@ class UserService:
         """Create a new user (used for testing, prefer auth/register for production)."""
         # Check email uniqueness
         # Although repository create might catch integrity error, explicit check is often better for error msgs
-        existing_email_user = await self.repository.session.exec(
-            select(User).where(User.email == user.email)
-        )
-        if existing_email_user.first():
+        existing_email_user = await self.repository.get_by_email(user.email)
+        if existing_email_user:
             raise HTTPException(status_code=400, detail="Email already registered")
 
         existing_username = await self.repository.get_by_username(user.username)
@@ -70,6 +67,9 @@ class UserService:
 
     async def get_by_username(self, username: str) -> Optional[User]:
         return await self.repository.get_by_username(username)
+
+    async def get_by_email(self, email: str) -> Optional[User]:
+        return await self.repository.get_by_email(email)
 
     async def authenticate_user(self, username: str, password: str) -> Optional[Token]:
         """Authenticate a user (kept for backwards compatibility)."""

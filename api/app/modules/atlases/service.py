@@ -108,6 +108,12 @@ class AtlasService:
     async def get_all_atlases(self) -> List[Atlas]:
         return await self.repository.get_all()
 
+    async def get_atlas(self, atlas_id: int) -> Atlas:
+        atlas = await self.repository.get(atlas_id)
+        if not atlas:
+            raise HTTPException(status_code=404, detail="Atlas not found")
+        return atlas
+
     async def delete_atlas(self, atlas_id: int, current_user: UserRead) -> bool:
         if all(
             role not in current_user.roles

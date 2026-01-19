@@ -27,6 +27,19 @@ async def get_all_atlases(
     return await service.get_all_atlases()
 
 
+@atlasesRouter.get("/{atlas_id}", response_model=AtlasRead)
+async def get_atlas(
+    atlas_id: int,
+    service: AtlasServiceDep,
+    current_user: UserRead = Depends(get_current_user),
+):
+    if current_user is None:
+        raise HTTPException(
+            status_code=403, detail="Permission denied, you must be logged in"
+        )
+    return await service.get_atlas(atlas_id)
+
+
 @atlasesRouter.post("", response_model=AtlasRead)
 async def create(
     atlas: AtlasBase,

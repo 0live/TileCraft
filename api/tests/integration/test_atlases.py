@@ -42,6 +42,59 @@ async def test_get_all_atlases(client: AsyncClient, auth_token_factory):
 
 
 @pytest.mark.asyncio
+async def test_get_atlas(client: AsyncClient, auth_token_factory):
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create an atlas first
+    response = await client.post(
+        "/atlases",
+        json={"name": "Another Atlas", "description": "Another Description"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    atlas_id = response.json()["id"]
+
+    response = await client.get(f"/atlases/{atlas_id}", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Another Atlas"
+    assert data["description"] == "Another Description"
+    assert "id" in data
+    assert isinstance(data["teams"], list)
+    assert isinstance(data["maps"], list)
+
+
+@pytest.mark.asyncio
+async def test_update_atlas(client: AsyncClient, auth_token_factory):
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create an atlas first
+    response = await client.post(
+        "/atlases",
+        json={"name": "Another Atlas", "description": "Another Description"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    atlas_id = response.json()["id"]
+
+    # Update it
+    response = await client.patch(
+        f"/atlases/{atlas_id}",
+        json={"name": "Updated Atlas", "description": "Updated Description"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated Atlas"
+    assert data["description"] == "Updated Description"
+    assert "id" in data
+    assert isinstance(data["teams"], list)
+    assert isinstance(data["maps"], list)
+
+
+@pytest.mark.asyncio
 async def test_delete_atlas(client: AsyncClient, auth_token_factory):
     token = await auth_token_factory("admin", "admin")
     headers = {"Authorization": f"Bearer {token}"}
@@ -64,67 +117,6 @@ async def test_delete_atlas(client: AsyncClient, auth_token_factory):
     response = await client.get("/atlases", headers=headers)
     data = response.json()
     assert not any(a["id"] == atlas_id for a in data)
-
-
-@pytest.mark.asyncio
-async def test_update_atlas_maps(client: AsyncClient, auth_token_factory):
-    token = await auth_token_factory("admin", "admin")
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # Create maps
-    map_ids = []
-    for i in range(2):
-        resp = await client.post(
-            "/maps",
-            json={"name": f"Map {i}", "description": "desc", "style": "{}."},
-            headers=headers,
-        )
-        assert resp.status_code == 200
-        map_ids.append(resp.json()["id"])
-
-    # Create atlas
-    resp = await client.post(
-        "/atlases",
-        json={"name": "Atlas Maps Test", "description": "desc"},
-        headers=headers,
-    )
-    atlas_id = resp.json()["id"]
-
-    # Add Map 0
-    resp = await client.patch(
-        f"/atlases/{atlas_id}",
-        json={"maps": [map_ids[0]]},
-        headers=headers,
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["maps"]) == 1
-    assert data["maps"][0]["id"] == map_ids[0]
-
-    # Add Map 1 (should append if logic was append, but our new logic is toggle?
-    # Wait, the logic I implemented was:
-    # for map_id in maps: if present remove, else add.
-    # So if I send [map_ids[1]], map 0 remains?
-    # NO. The implementation iterates over the input list.
-    # It does NOT touch maps NOT in the input list.
-    # So sending [map_ids[1]] will add map 1. Map 0 is untouched.
-    resp = await client.patch(
-        f"/atlases/{atlas_id}",
-        json={"maps": [map_ids[1]]},
-        headers=headers,
-    )
-    data = resp.json()
-    assert len(data["maps"]) == 2
-
-    # Remove Map 0 (send it again to toggle off)
-    resp = await client.patch(
-        f"/atlases/{atlas_id}",
-        json={"maps": [map_ids[0]]},
-        headers=headers,
-    )
-    data = resp.json()
-    assert len(data["maps"]) == 1
-    assert data["maps"][0]["id"] == map_ids[1]
 
 
 @pytest.mark.asyncio

@@ -34,7 +34,7 @@ class Seeder:
         # Order matters because of Foreign Key constraints
         await session.exec(
             text(
-                'TRUNCATE TABLE userteamlink, atlasteamlink, atlasmaplink, atlas, map, team, "user" RESTART IDENTITY CASCADE;'
+                'TRUNCATE TABLE userteamlink, atlasteamlink, atlas, map, team, "user" RESTART IDENTITY CASCADE;'
             )
         )
         if commit:
@@ -123,6 +123,31 @@ class Seeder:
         ]
 
         session.add_all(links)
+
+        # --- 5. Create Maps ---
+        from app.modules.maps.models import Map
+
+        map1 = Map(
+            name="Map 1",
+            description="First map in Atlas 1",
+            style="dark",
+            atlas_id=atlas1_id,
+        )
+        map2 = Map(
+            name="Map 2",
+            description="Second map in Atlas 1",
+            style="light",
+            atlas_id=atlas1_id,
+        )
+        map3 = Map(
+            name="Map 3",
+            description="Map in Atlas 2",
+            style="satellite",
+            atlas_id=atlas2_id,
+        )
+
+        session.add_all([map1, map2, map3])
+
         if commit:
             await session.commit()
         else:

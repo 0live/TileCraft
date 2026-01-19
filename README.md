@@ -1,12 +1,11 @@
 # TileCraft Project
 
-
 ![TileCraft stack](img/Tilecraft_stack.png)
 
+Todo:
 
-Todo: 
-* use psycopg3[async] instead of 2
-* set all endpoints as async
-* set singleton for config / environment variables
-* Set docker images tag instead of latest
-* Finish tests
+- Implement access to entities logic (owner, team, members, public)
+- Put get by name in core repository
+- Centralize http error codes
+- Set locale for api responses
+- Finish tests

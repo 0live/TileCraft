@@ -21,6 +21,19 @@ async def get_all_maps(
     return await service.get_all_maps()
 
 
+@mapsRouter.get("/{map_id}", response_model=MapRead)
+async def get_map(
+    map_id: int,
+    service: MapServiceDep,
+    current_user: UserRead = Depends(get_current_user),
+):
+    if current_user is None:
+        raise HTTPException(
+            status_code=403, detail="Permission denied, you must be logged in"
+        )
+    return await service.get_map(map_id)
+
+
 @mapsRouter.post("", response_model=MapRead)
 async def create(
     map: MapCreate,
@@ -38,3 +51,12 @@ async def patch_map(
     current_user: UserRead = Depends(get_current_user),
 ):
     return await service.update_map(map_id, map, current_user)
+
+
+@mapsRouter.delete("/{map_id}")
+async def delete_map(
+    map_id: int,
+    service: MapServiceDep,
+    current_user: UserRead = Depends(get_current_user),
+):
+    return await service.delete_map(map_id, current_user)

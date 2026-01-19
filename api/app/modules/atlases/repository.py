@@ -5,7 +5,6 @@ from sqlmodel import select
 
 from app.core.repository import BaseRepository
 from app.modules.atlases.models import Atlas, AtlasTeamLink
-from app.modules.maps.models import Map
 from app.modules.teams.models import Team
 
 
@@ -24,36 +23,6 @@ class AtlasRepository(BaseRepository[Atlas]):
             query = query.options(option)
         result = await self.session.exec(query)
         return result.first()
-
-    async def update(self, id: int, attributes: dict) -> Optional[Atlas]:
-        """
-        Update an atlas.
-        Handles 'maps' specifically: toggles presence (add if missing, remove if present).
-        """
-        if "maps" in attributes:
-            map_ids = attributes.pop("maps")
-            atlas = await self.get(id)
-            if not atlas:
-                return None
-
-            current_map_ids = {m.id for m in atlas.maps}
-            for map_id in map_ids:
-                if map_id in current_map_ids:
-                    # Remove
-                    map_to_remove = next(m for m in atlas.maps if m.id == map_id)
-                    atlas.maps.remove(map_to_remove)
-                else:
-                    # Add
-                    map_result = await self.session.exec(
-                        select(Map).where(Map.id == map_id)
-                    )
-                    map_obj = map_result.first()
-                    if map_obj:
-                        atlas.maps.append(map_obj)
-                    else:
-                        raise ValueError(f"Map with id {map_id} not found")
-
-        return await super().update(id, attributes)
 
     async def upsert_team_link(self, link_data: dict) -> AtlasTeamLink:
         """

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
 
-from app.modules.maps.models import AtlasMapLink, Map
+from app.modules.maps.models import Map
 
 if TYPE_CHECKING:
     from app.modules.teams.models import Team
@@ -23,4 +23,4 @@ class Atlas(SQLModel, table=True):
     teams: List["Team"] = Relationship(
         back_populates="atlases", link_model=AtlasTeamLink
     )
-    maps: List["Map"] = Relationship(back_populates="atlases", link_model=AtlasMapLink)
+    maps: List["Map"] = Relationship(back_populates="atlas")

@@ -1,13 +1,7 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field
-
-
-class AtlasInMap(BaseModel):
-    id: int
-    name: str
-    model_config = ConfigDict(from_attributes=True)
 
 
 class MapBase(BaseModel):
@@ -18,16 +12,15 @@ class MapBase(BaseModel):
 
 
 class MapCreate(MapBase):
-    atlases: Optional[List[int]] = []
+    atlas_id: int
 
 
 class MapRead(MapBase):
     id: int
-    atlases: List[AtlasInMap] = []
+    atlas_id: int
 
 
 class MapUpdate(BaseModel):
     name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     style: Optional[str] = Field(default=None)
-    atlases: Optional[List[int]] = Field(default=None)

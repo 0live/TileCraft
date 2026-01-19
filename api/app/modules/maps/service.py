@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
 from fastapi import Depends, HTTPException
 from sqlmodel import select
@@ -31,31 +31,15 @@ class MapService:
         if existing_map:
             raise HTTPException(status_code=400, detail="This name already exists")
 
-        # We need to handle atlases relationship manually before creation or after?
-        # MapBase has atlases: Optional[List[int]]
-        # BaseRepository.create takes dict and creates model.
-        # But if we pass list of IDs to relationship field, SQLModel might not handle it directly unless we process it.
-        # The existing logic did: new_map = Map(...exclude atlases); then manually appended atlases.
+        # Verify Atlas exists
+        atlas = await self.repository.session.exec(
+            select(Atlas).where(Atlas.id == map.atlas_id)
+        )
+        if not atlas.first():
+            raise HTTPException(status_code=404, detail="Atlas not found")
 
-        map_dict = map.model_dump(exclude={"atlases"})
-        new_map = Map(**map_dict)
-
-        if map.atlases is not None:
-            for atlas_id in map.atlases:
-                atlas = await self.repository.session.exec(
-                    select(Atlas).where(Atlas.id == atlas_id)
-                )
-                atlas_obj = atlas.first()
-                if atlas_obj:
-                    new_map.atlases.append(atlas_obj)
-                else:
-                    raise HTTPException(status_code=404, detail="Atlas not found")
-
-        self.repository.session.add(new_map)
-        await self.repository.session.commit()
-        await self.repository.session.refresh(new_map)
-
-        # Reload to ensure atlases are loaded
+        # Create Map (atlas_id is included in map.model_dump())
+        new_map = await self.repository.create(map.model_dump())
         return await self.repository.get_by_name(new_map.name)
 
     async def update_map(
@@ -70,48 +54,39 @@ class MapService:
         ):
             raise HTTPException(status_code=403, detail="Forbidden")
 
-        map_db = await self.repository.get_with_atlases(map_id)
+        map_db = await self.repository.get(map_id)
         if not map_db:
             raise HTTPException(status_code=404, detail="Map not found")
 
-        map_dict = map_update.model_dump(exclude_unset=True, exclude={"atlases"})
+        # We exclude unset fields.
+        # Note: MapUpdate schema no longer has 'atlas_id' (immutable).
+        updated_map = await self.repository.update(
+            map_id, map_update.model_dump(exclude_unset=True)
+        )
+        if not updated_map:
+            raise HTTPException(status_code=404, detail="Map not found")
 
-        if map_update.atlases is not None:
-            # We need to handle list diff
-            current_atlas_ids = {a.id for a in map_db.atlases}
+        return updated_map
 
-            # Logic from original service:
-            # if atlas_id in map_db.atlases (list of IDs? No, list of Atlas in new model?)
-            # Original code: if atlas_id in map_db.atlases: remove else add.
-            # But map_db.atlases is List[Atlas]. So `atlas_id in map_db.atlases` fails for int.
-            # I fixed this in User service. Same here.
+    async def get_map(self, map_id: int) -> Optional[Map]:
+        map_obj = await self.repository.get(map_id)
+        if not map_obj:
+            raise HTTPException(status_code=404, detail="Map not found")
+        return map_obj
 
-            for atlas_id in map_update.atlases:
-                if atlas_id in current_atlas_ids:
-                    # Remove
-                    atlas_to_remove = next(
-                        a for a in map_db.atlases if a.id == atlas_id
-                    )
-                    map_db.atlases.remove(atlas_to_remove)
-                else:
-                    # Add
-                    atlas = await self.repository.session.exec(
-                        select(Atlas).where(Atlas.id == atlas_id)
-                    )
-                    atlas_obj = atlas.first()
-                    if atlas_obj:
-                        map_db.atlases.append(atlas_obj)
-                    else:
-                        raise HTTPException(status_code=404, detail="Atlas not found")
+    async def delete_map(self, map_id: int, current_user: UserRead) -> bool:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
+        ):
+            raise HTTPException(
+                status_code=403, detail="You don't have permission to delete maps"
+            )
 
-        for key, value in map_dict.items():
-            setattr(map_db, key, value)
-
-        self.repository.session.add(map_db)
-        await self.repository.session.commit()
-        await self.repository.session.refresh(map_db)
-
-        return await self.repository.get_with_atlases(map_db.id)
+        deleted = await self.repository.delete(map_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Map not found")
+        return True
 
     async def get_all_maps(self) -> List[Map]:
         return await self.repository.get_all()

@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field
 
@@ -30,8 +31,8 @@ class AtlasRead(AtlasBase):
 class AtlasUpdate(BaseModel):
     name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
+
     teams: Optional[List[int]] = Field(default=None)
-    maps: Optional[List[int]] = Field(default=None)
 
 
 class AtlasTeamLinkRead(BaseModel):

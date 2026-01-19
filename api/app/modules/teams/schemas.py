@@ -1,4 +1,5 @@
 from typing import List
+
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
@@ -17,3 +18,9 @@ class TeamBase(BaseModel):
 
 class TeamRead(TeamBase):
     id: int
+
+
+class TeamUpdate(BaseModel):
+    name: str | None = None
+    users: List[UserInTeam] | None = None
+    model_config = ConfigDict(from_attributes=True)

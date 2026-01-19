@@ -29,20 +29,41 @@ class TeamService:
         if existing_team:
             raise HTTPException(status_code=400, detail="This name already exists")
 
-        new_team = await self.repository.create(team.model_dump())
+        # The repository now handles reloading with relationships automatically
+        return await self.repository.create(team.model_dump())
 
-        # Reload or return carefully.
-        # Since it's new, users list is empty.
-        # But for TeamRead to validate without erroring on missing attribute 'users':
-        # we should ensure it's loaded as empty list.
-        # BaseRepository refreshes, but without relationships.
-        # Accessing new_team.users might trigger lazy load failure.
+    async def get_team_by_id(self, id: int) -> Team:
+        team = await self.repository.get(id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        return team
 
-        # We can manually set it if we know it works, or reload.
-        return await self.repository.get_by_name(new_team.name)
+    async def update_team(
+        self, id: int, team_update: TeamBase, current_user: UserRead
+    ) -> Team:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
+        ):
+            raise HTTPException(
+                status_code=403, detail="You don't have permission to update teams"
+            )
+        team = await self.get_team_by_id(id)
+
+        if team_update.name != team.name:
+            existing_team = await self.repository.get_by_name(team_update.name)
+            if existing_team:
+                raise HTTPException(status_code=400, detail="This name already exists")
+
+        return await self.repository.update(
+            id, team_update.model_dump(exclude_unset=True)
+        )
 
     async def get_all_teams(self) -> List[Team]:
         return await self.repository.get_all()
+
+    async def delete_team(self, id: int) -> bool:
+        return await self.repository.delete(id)
 
 
 # Dependencies

@@ -33,6 +33,9 @@ class BaseRepository(Generic[ModelType]):
         db_obj = self.model(**attributes)
         self.session.add(db_obj)
         await self.session.commit()
+        if self.get_load_options():
+            return await self.get(db_obj.id)
+
         await self.session.refresh(db_obj)
         return db_obj
 
@@ -63,6 +66,11 @@ class BaseRepository(Generic[ModelType]):
 
         self.session.add(db_obj)
         await self.session.commit()
+        if self.get_load_options():
+            # If we have load options, we need to fetch the object again to ensure
+            # all relationships are properly loaded
+            return await self.get(db_obj.id)
+
         await self.session.refresh(db_obj)
         return db_obj
 

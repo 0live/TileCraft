@@ -1,24 +1,41 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from app.core.config import get_settings
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 
-def get_engine():
-    settings = get_settings()
-    return create_async_engine(str(settings.database_url), echo=True, future=True)
+class DatabaseSessionManager:
+    def __init__(self):
+        self.engine: AsyncEngine | None = None
+
+    def init(self, host: str):
+        self.engine = create_async_engine(host, echo=True, future=True)
+
+    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
+        if self.engine is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+
+        async with AsyncSession(self.engine, expire_on_commit=False) as session:
+            yield session
+
+    async def close(self):
+        if self.engine is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+        await self.engine.dispose()
 
 
-engine = get_engine()
+sessionmanager = DatabaseSessionManager()
 
 
-async def get_session():
-    async with AsyncSession(engine, expire_on_commit=False) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async for session in sessionmanager.get_session():
         yield session
 
 
-# This Session will be used by all DB request
+def get_engine() -> AsyncEngine:
+    if sessionmanager.engine is None:
+        raise Exception("DatabaseSessionManager is not initialized")
+    return sessionmanager.engine
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]

@@ -1,9 +1,20 @@
-from pydantic import EmailStr
-from sqlmodel import ARRAY, Column, Relationship, SQLModel, Field
+from enum import Enum
 from typing import List, Optional
-from app.db.teams import Team, UserTeamLink
-from app.models.user_roles import UserRole
+
+from pydantic import EmailStr
 from sqlalchemy import Enum as SAEnum
+from sqlmodel import ARRAY, Column, Field, Relationship, SQLModel
+
+from app.modules.teams.models import Team, UserTeamLink
+
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    USER = "USER"
+    MANAGE_TEAMS = "MANAGE_TEAMS"
+    MANAGE_ATLASES_AND_MAPS = "MANAGE_ATLASES_AND_MAPS"
+    LOAD_DATA = "LOAD_DATA"
+    LOAD_ICONS = "LOAD_ICONS"
 
 
 class User(SQLModel, table=True):

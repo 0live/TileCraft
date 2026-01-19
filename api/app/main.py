@@ -1,17 +1,22 @@
 from contextlib import asynccontextmanager
-import os
-from app.core.config import get_settings
+
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
-from app.endpoints.users import userRouter
-from app.endpoints.teams import teamsRouter
-from app.endpoints.sso.google import googleRouter
-from app.endpoints.atlases import atlasesRouter
-from app.endpoints.maps import mapsRouter
+
+from app.core.config import get_settings
+from app.core.database import sessionmanager
+from app.modules.atlases.endpoints import atlasesRouter
+from app.modules.auth.endpoints import authRouter
+from app.modules.maps.endpoints import mapsRouter
+from app.modules.teams.endpoints import teamsRouter
+from app.modules.users.endpoints import userRouter
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    sessionmanager.init(str(get_settings().database_url))
     yield
+    await sessionmanager.close()
 
 
 app = FastAPI(
@@ -28,8 +33,8 @@ app.add_middleware(
     https_only=False if get_settings().env == "dev" else True,
 )
 
+app.include_router(authRouter)
 app.include_router(userRouter)
 app.include_router(teamsRouter)
-app.include_router(googleRouter)
 app.include_router(atlasesRouter)
 app.include_router(mapsRouter)

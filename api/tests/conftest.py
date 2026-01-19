@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 from app.core.config import Settings, get_settings
 from app.core.database import get_session
-from app.core.seeds import run_seed
+from app.core.seeds import Seeder
 from app.main import app
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import pool
@@ -72,7 +72,9 @@ async def session_fixture(engine):
         session = AsyncSession(bind=connection, expire_on_commit=False)
 
         # Run seeds inside the transaction
-        await run_seed(session, commit=False)
+        # Run seeds inside the transaction
+        seeder = Seeder(session)
+        await seeder.run(commit=False)
 
         yield session
 
@@ -123,7 +125,7 @@ def token_factory_fixture(client: AsyncClient):
     ) -> str:
         payload = {"username": username, "password": password}
         response = await client.post(
-            "/users/login",
+            "/auth/login",
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )

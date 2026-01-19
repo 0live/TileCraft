@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, List, Optional
+
 from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from app.db.atlases import Atlas
+    from app.modules.atlases.models import Atlas
 
 
 class AtlasMapLink(SQLModel, table=True):

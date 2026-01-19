@@ -7,9 +7,9 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.db.users import User  # noqa
-from app.db.teams import Team, UserTeamLink  # noqa
-from app.db.atlases import Atlas, AtlasTeamLink  # noqa
+from app.modules.users.models import User  # noqa
+from app.modules.teams.models import Team, UserTeamLink  # noqa
+from app.modules.atlases.models import Atlas, AtlasTeamLink  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

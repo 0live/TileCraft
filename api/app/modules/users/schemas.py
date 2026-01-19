@@ -1,8 +1,9 @@
 from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models.teams import TeamRead
-from app.models.user_roles import UserRole
+from app.modules.teams.schemas import TeamRead
+from app.modules.users.models import UserRole
 
 
 class UserBase(BaseModel):

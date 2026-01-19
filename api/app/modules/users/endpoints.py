@@ -1,23 +1,14 @@
-from typing import Annotated, List
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
-from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
-from app.db.teams import Team
-from app.db.users import User
-from app.models.auth import Token
-from app.models.user_roles import UserRole
-from app.models.users import UserCreate, UserRead, UserUpdate
-from app.services.users import (
-    authenticate_user,
-    create_user,
-    get_current_user,
-    update_user,
-)
+from app.modules.teams.models import Team
+from app.modules.users.models import User, UserRole
+from app.modules.users.schemas import UserRead, UserUpdate
+from app.modules.users.service import UserServiceDep, get_current_user
 
 userRouter = APIRouter(prefix="/users", tags=["Users"])
 
@@ -62,27 +53,11 @@ async def get_user(
     return UserRead.model_validate(user)
 
 
-@userRouter.post("/register", response_model=UserRead)
-async def register(user: UserCreate, session: SessionDep):
-    return await create_user(user, session)
-
-
-@userRouter.post("/login", response_model=Token)
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: SessionDep,
-    settings: Annotated[Settings, Depends(get_settings)],
-):
-    return await authenticate_user(
-        session, form_data.username, form_data.password, settings
-    )
-
-
 @userRouter.patch("/{user_id}", response_model=UserRead)
 async def patch_user(
     user_id: int,
     user: UserUpdate,
-    session: SessionDep,
+    service: UserServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return await update_user(user_id, user, session, current_user)
+    return await service.update_user(user_id, user, current_user)

@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Optional, List
-from sqlmodel import Field, SQLModel, Relationship
-from app.db.atlases import Atlas, AtlasTeamLink
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlmodel import Field, Relationship, SQLModel
+
+from app.modules.atlases.models import Atlas, AtlasTeamLink
 
 if TYPE_CHECKING:
-    from app.db.users import User
+    from app.modules.users.models import User
 
 
 class UserTeamLink(SQLModel, table=True):

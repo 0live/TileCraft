@@ -1,10 +1,8 @@
 -include .env
 -include .env.local
 -include api/Makefile
--include local.mk
 
 DOCKER_COMPOSE = docker compose --env-file .env --env-file .env.local
-IMPOSM_CONTAINER = imposm
 
 build:
 	$(DOCKER_COMPOSE) build
@@ -19,6 +17,6 @@ genpkey:
 	echo "PRIVATE_KEY=$$(openssl rand -hex 32)" >> .env.local
 
 launch-tests:
-	cd api/ && pytest
+	cd api/ && uv run pytest
 
-create-app: build start genpkey init-alembic
+create-app: genpkey build start setup-db

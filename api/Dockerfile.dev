@@ -1,10 +1,27 @@
+FROM python:3.12-slim
 
-FROM python:3.11
+# 1. Install uv ⚡
+# We copy the binary directly from the official image for speed
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# 2. Environment Configuration
+# Force uv to install packages into the system Python (/usr/local)
+# This prevents conflicts between the container's .venv and your local volume
+ENV UV_PROJECT_ENVIRONMENT="/usr/local"
 
 WORKDIR /code
 
-COPY ./requirements.txt /code/requirements.txt
+# 3. Dependency Installation
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Synchronize dependencies without installing the current project code
+# --frozen ensures uv doesn't try to update the lockfile during build
+RUN uv sync --frozen --no-install-project
 
+# 4. Copy the Application Code
+# While the volume will override this in dev, it makes the image standalone
+COPY . .
+
+# 5. Start the Application
+# Using 'uvicorn --reload' for real-time updates during development
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

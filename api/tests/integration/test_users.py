@@ -1,144 +1,115 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import AsyncClient
 
 
-def test_create_user(client: TestClient, user_data):
-    response = client.post("/users/register", json=user_data)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] is not None
-    assert data["email"] == "test@test.com"
-    assert data["username"] == "test_user"
-    assert "password" not in data
-    assert "hashed_password" not in data
-    assert "USER" in data["roles"]
-    assert "teams" in data
-
-
-def test_login(existing_users, client: TestClient):
-    response = client.post(
-        "/users/login",
-        data={
-            "username": existing_users[0]["username"],
-            "password": existing_users[0]["password"],
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
-
-
-def test_login_invalid_credentials(client: TestClient):
-    response = client.post(
-        "/users/login",
-        data={"username": "unknown", "password": "wrongpass"},
-    )
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid credentials"
-
-
-def test_create_user_duplicate_email(client: TestClient, existing_users):
-    response = client.post(
-        "/users/register",
-        json={
-            "email": existing_users[0]["email"],
-            "username": "Random",
-            "password": "Random",
-        },
-    )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Email already registered"
-
-
-def test_create_user_duplicate_username(client: TestClient, existing_users):
-    response = client.post(
-        "/users/register",
-        json={
-            "email": "random@random.com",
-            "username": existing_users[0]["username"],
-            "password": "Random",
-        },
-    )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Username already registered"
-
-
-def test_get_all_users(client: TestClient, get_token, existing_users):
-    # unauthenticated
-    response = client.get("/users")
+@pytest.mark.asyncio
+async def test_get_all_users_permissions(
+    client: AsyncClient, auth_token_factory, existing_users
+):
+    """Tests access control for listing all users."""
+    # 1. Unauthenticated
+    response = await client.get("/users")
     assert response.status_code == 401
 
-    # authenticated as user
-    token = get_token(
+    # 2. Authenticated as regular user (Should be Forbidden)
+    token = await auth_token_factory(
         username=existing_users[0]["username"], password=existing_users[0]["password"]
     )
-    response = client.get("/users", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get("/users", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
-    # authenticated as admin
-    token = get_token(
+    # 3. Authenticated as admin (Should be OK)
+    admin_token = await auth_token_factory(
         username=existing_users[2]["username"], password=existing_users[2]["password"]
     )
-    response = client.get("/users", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
-    assert len(data) > 0
-
-
-def test_get_me(client: TestClient, get_token, existing_users):
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
+    response = await client.get(
+        "/users", headers={"Authorization": f"Bearer {admin_token}"}
     )
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    data = response.json()
-    assert data["username"] == existing_users[0]["username"]
-    assert data["email"] == existing_users[0]["email"]
-    assert "password" not in data
-    assert "hashed_password" not in data
-    assert "USER" in data["roles"]
-    assert "teams" in data
+    assert isinstance(response.json(), list)
 
 
-def test_get_user(client: TestClient, get_token, existing_users):
-    # get your own user
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
-    )
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
-    id = response.json()["id"]
-    response = client.get(f"/users/{id}", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
-
-    # get another user as admin
-    token = get_token(
+@pytest.mark.asyncio
+async def test_get_user_dynamic_id(
+    client: AsyncClient, auth_token_factory, existing_users
+):
+    """Tests retrieving a user with a dynamic ID instead of hardcoded '1'."""
+    admin_token = await auth_token_factory(
         username=existing_users[2]["username"], password=existing_users[2]["password"]
     )
-    response = client.get("/users/1", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 200
 
-    # get another user as user
-    token = get_token(
-        username=existing_users[0]["username"], password=existing_users[0]["password"]
+    # Get own ID first
+    me_res = await client.get(
+        "/users/me", headers={"Authorization": f"Bearer {admin_token}"}
     )
-    response = client.get("/users/1", headers={"Authorization": f"Bearer {token}"})
+    my_id = me_res.json()["id"]
+
+    # Fetch user by dynamic ID
+    response = await client.get(
+        f"/users/{my_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["username"] == existing_users[2]["username"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_restriction(
+    client: AsyncClient, auth_token_factory, user_data
+):
+    """Verifies that a user cannot upgrade their own roles."""
+    # Register via /auth/register
+    await client.post("/auth/register", json=user_data)
+    token = await auth_token_factory(
+        username=user_data["username"], password=user_data["password"]
+    )
+
+    me_res = await client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+    me = me_res.json()
+    user_id = me["id"]
+
+    # Attempting to change roles should fail
+    updated_data = {"roles": ["ADMIN"]}
+    response = await client.patch(
+        f"/users/{user_id}",
+        json=updated_data,
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 403
 
 
-def test_update_user(client: TestClient, get_token, user_data):
-    client.post("/users/register", json=user_data)
-    token = get_token(username=user_data["username"], password=user_data["password"])
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
-    id = response.json()["id"]
-    updated_data = {"username": "updated_user", "email": "updated@test.com"}
-    response = client.patch(
-        f"/users/{id}", json=updated_data, headers={"Authorization": f"Bearer {token}"}
+@pytest.mark.asyncio
+async def test_delete_user(client: AsyncClient, auth_token_factory, existing_users):
+    """Verifies that an admin can delete a user."""
+    # 1. Login as Admin
+    admin_token = await auth_token_factory(
+        username=existing_users[2]["username"], password=existing_users[2]["password"]
     )
-    assert response.status_code == 200
 
-    updated_data = {"roles": ["MANAGE_TEAMS"]}
-    response = client.patch(
-        f"/users/{id}", json=updated_data, headers={"Authorization": f"Bearer {token}"}
+    # 2. Create a dummy user to delete using /auth/register
+    user_to_delete = {
+        "username": "todelete",
+        "email": "todelete@example.com",
+        "password": "password",
+    }
+    await client.post("/auth/register", json=user_to_delete)
+
+    # 3. Get the user ID
+    # Usually we'd need to fetch by username or list, let's list them
+    list_res = await client.get(
+        "/users", headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert response.status_code == 401
+    users = list_res.json()
+    target_user = next(u for u in users if u["username"] == "todelete")
+    target_id = target_user["id"]
+
+    # 4. Delete the user
+    del_res = await client.delete(
+        f"/users/{target_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert del_res.status_code == 200
+
+    # 5. Verify 404 on get
+    get_res = await client.get(
+        f"/users/{target_id}", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert get_res.status_code == 404

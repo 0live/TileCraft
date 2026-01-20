@@ -1,35 +1,41 @@
-import os
-from typing import Annotated
-from dotenv import load_dotenv
+from typing import Annotated, AsyncGenerator
+
 from fastapi import Depends
-from sqlmodel import SQLModel, Session, create_engine
-
-from app.core.mock_data import create_mock_data
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("The DATABASE_URL environment variable is not set")
+class DatabaseSessionManager:
+    def __init__(self):
+        self.engine: AsyncEngine | None = None
+
+    def init(self, host: str):
+        self.engine = create_async_engine(host, echo=True, future=True)
+
+    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
+        if self.engine is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+
+        async with AsyncSession(self.engine, expire_on_commit=False) as session:
+            yield session
+
+    async def close(self):
+        if self.engine is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+        await self.engine.dispose()
 
 
-engine = create_engine(DATABASE_URL, echo=True, future=True)
+sessionmanager = DatabaseSessionManager()
 
 
-def init_db():
-    SQLModel.metadata.create_all(engine)
-
-
-def mock_database():
-    SQLModel.metadata.drop_all(engine)
-    SQLModel.metadata.create_all(engine)
-    create_mock_data(engine)
-
-
-def get_session():
-    with Session(engine) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async for session in sessionmanager.get_session():
         yield session
 
 
-# This Session will be used by all DB request
-SessionDep = Annotated[Session, Depends(get_session)]
+def get_engine() -> AsyncEngine:
+    if sessionmanager.engine is None:
+        raise Exception("DatabaseSessionManager is not initialized")
+    return sessionmanager.engine
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]

@@ -1,61 +1,103 @@
-from fastapi.testclient import TestClient
 import pytest
-from sqlmodel import SQLModel, Session, create_engine
-from testcontainers.postgres import PostgresContainer
-from testcontainers.core.waiting_utils import wait_for_logs
-
-from app.core.mock_data import create_mock_data
+import pytest_asyncio
+from app.core.config import Settings, get_settings
 from app.core.database import get_session
+from app.core.seeds import Seeder
 from app.main import app
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.postgres import PostgresContainer
 
 POSTGRES_IMAGE = "postgres:16-alpine"
 POSTGRES_USER = "tester"
 POSTGRES_PASSWORD = "tester"
 POSTGRES_DATABASE = "test_database"
-POSTGRES_CONTAINER_PORT = 5432
 
 
-@pytest.fixture(name="postgres_container")
-def postgres_container():
+@pytest.fixture(name="postgres_container", scope="session")
+def postgres_container_fixture():
+    """Starts the container once per session."""
     postgres = PostgresContainer(
         image=POSTGRES_IMAGE,
         username=POSTGRES_USER,
         password=POSTGRES_PASSWORD,
         dbname=POSTGRES_DATABASE,
-        port=POSTGRES_CONTAINER_PORT,
     )
     with postgres:
         wait_for_logs(
             container=postgres,
             predicate="database system is ready to accept connections",
-            timeout=30,
-            interval=0.5,
         )
         yield postgres
 
 
-@pytest.fixture(name="session")
-def session_fixture(postgres_container: PostgresContainer):
-    engine = create_engine(postgres_container.get_connection_url(), echo=True)
-    SQLModel.metadata.create_all(engine)
-    create_mock_data(engine)
-    with Session(engine) as session:
+@pytest.fixture(name="settings", scope="session")
+def settings_fixture(postgres_container: PostgresContainer):
+    """Provides test-specific settings to override environment variables."""
+    return Settings(
+        env="test",
+        private_key="test_secret_key_very_long_for_jwt_requirements_123",
+        postgres_user=POSTGRES_USER,
+        postgres_password=POSTGRES_PASSWORD,
+        postgres_db=POSTGRES_DATABASE,
+        database_url=postgres_container.get_connection_url()
+        .replace("postgresql+psycopg2://", "postgresql+psycopg://")
+        .replace("postgresql://", "postgresql+psycopg://"),
+    )
+
+
+@pytest_asyncio.fixture(name="engine", scope="session")
+async def engine_fixture(settings: Settings):
+    """Initializes the database schema once per session."""
+    engine = create_async_engine(settings.database_url, poolclass=pool.NullPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(name="session")
+async def session_fixture(engine):
+    """
+    Wraps each test in a transaction.
+    Seeds are run inside the transaction and rolled back after each test.
+    """
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        # Bind session to the connection to participate in the transaction
+        session = AsyncSession(bind=connection, expire_on_commit=False)
+
+        # Run seeds inside the transaction
+        # Run seeds inside the transaction
+        seeder = Seeder(session)
+        await seeder.run(commit=False)
+
         yield session
 
+        await session.close()
+        await transaction.rollback()
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
-        return session
 
-    app.dependency_overrides[get_session] = get_session_override
-    client = TestClient(app)
-    yield client
+@pytest_asyncio.fixture(name="client")
+async def client_fixture(session: AsyncSession, settings: Settings):
+    """Configures AsyncClient with session and settings overrides."""
+    app.dependency_overrides[get_session] = lambda: session
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
     app.dependency_overrides.clear()
 
 
 @pytest.fixture(name="user_data")
-def user_data():
+def user_data_fixture():
     return {
         "email": "test@test.com",
         "username": "test_user",
@@ -64,32 +106,27 @@ def user_data():
 
 
 @pytest.fixture(name="existing_users")
-def existing_users():
+def existing_users_fixture():
     return [
-        {
-            "email": "user@test.com",
-            "username": "user",
-            "password": "user",
-        },
-        {
-            "email": "editor@test.com",
-            "username": "editor",
-            "password": "editor",
-        },
-        {
-            "email": "admin@test.com",
-            "username": "admin",
-            "password": "admin",
-        },
+        {"email": "user@test.com", "username": "user", "password": "user"},
+        {"email": "editor@test.com", "username": "editor", "password": "editor"},
+        {"email": "admin@test.com", "username": "admin", "password": "admin"},
     ]
 
 
-@pytest.fixture(name="get_token")
-def token_factory_fixture(client: TestClient):
-    def _get_token(username="test_user", password="test_password"):
-        response = client.post(
-            "/users/login",
-            data={"username": username, "password": password},
+@pytest.fixture(name="auth_token_factory")
+def token_factory_fixture(client: AsyncClient):
+    """
+    Helper fixture to generate a JWT token for protected routes.
+    """
+
+    async def _get_token(
+        username: str = "test_user", password: str = "test_password"
+    ) -> str:
+        payload = {"username": username, "password": password}
+        response = await client.post(
+            "/auth/login",
+            data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert response.status_code == 200

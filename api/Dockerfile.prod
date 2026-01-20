@@ -1,22 +1,41 @@
-FROM python:3.11-alpine AS builder
+# Stage 1: Builder
+FROM python:3.12-slim AS builder
 
-RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set working directory
+WORKDIR /code
+
+# Install system dependencies needed for building some Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies into a specific path
+# --frozen ensures we use the exact versions from uv.lock
+# --no-dev excludes development dependencies
+RUN uv sync --frozen --no-dev --no-install-project --no-editable
+
+# Stage 2: Final Runtime Image
+FROM python:3.11-slim
+
+# Copy the installed packages from the builder
+# uv installs by default in .venv unless configured otherwise
+COPY --from=builder /code/.venv /code/.venv
+
+# Ensure the virtualenv is used by adding it to the PATH
+ENV PATH="/code/.venv/bin:$PATH"
 
 WORKDIR /code
 
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-FROM python:3.11-alpine
-
-RUN apk add --no-cache libffi libstdc++ libgcc openssl
-
-COPY --from=builder /install /usr/local
-
-WORKDIR /code
-
+# Copy the application code
 COPY . .
 
+# Run the application
+# No need for 'uv' here to keep the final image minimal
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

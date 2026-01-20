@@ -1,0 +1,73 @@
+import secrets
+from typing import Annotated
+
+from fastapi import Depends, Request
+
+from app.core.config import Settings, get_settings
+from app.core.security import get_token
+from app.modules.auth.schemas import Token
+from app.modules.auth.services.google_auth import GoogleAuthService
+from app.modules.users.schemas import UserCreate, UserRead, UserRole
+from app.modules.users.service import UserService, UserServiceDep
+
+
+class AuthService:
+    """Service for authentication operations."""
+
+    def __init__(self, user_service: UserService, settings: Settings):
+        self.user_service = user_service
+        self.settings = settings
+
+    async def register(self, user: UserCreate) -> UserRead:
+        """Register a new user."""
+        return await self.user_service.create_user(user)
+
+    async def login(self, username: str, password: str) -> Token:
+        """Authenticate user and return token."""
+        return await self.user_service.authenticate_user(username, password)
+
+    async def google_login(self, request: Request) -> dict:
+        """Initiate Google OAuth flow."""
+        return await GoogleAuthService.login(request)
+
+    async def google_callback(self, request: Request) -> Token:
+        """Handle Google OAuth callback."""
+        user_info = await GoogleAuthService.callback(request)
+
+        email = user_info.get("email")
+        existing_user = await self.user_service.get_by_email(email)
+
+        if existing_user:
+            return get_token(
+                UserRead.model_validate(existing_user), settings=self.settings
+            )
+
+        # Create new user from Google info
+        user_data = UserCreate(
+            email=email,
+            username=user_info.get("name") or email.split("@")[0],
+            password=secrets.token_urlsafe(15),  # Generate random password
+            roles=[UserRole.USER],
+        )
+
+        # Use user service create
+        new_user = await self.user_service.create_user(user_data)
+
+        # Return token
+        return get_token(new_user, settings=self.settings)
+
+
+# =============================================================================
+# Dependencies
+# =============================================================================
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def get_auth_service(
+    user_service: UserServiceDep, settings: SettingsDep
+) -> AuthService:
+    return AuthService(user_service, settings)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

@@ -2,3 +2,4 @@
 docker/postgis/data
 local.mk
 .vscode/
+.agent/

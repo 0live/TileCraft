@@ -1,9 +1,14 @@
 from typing import Annotated, List
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
+from app.core.exceptions import (
+    DuplicateEntityException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+)
 from app.modules.teams.models import Team
 from app.modules.teams.repository import TeamRepository
 from app.modules.teams.schemas import TeamBase, TeamRead
@@ -21,13 +26,15 @@ class TeamService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to create teams"
+            raise PermissionDeniedException(
+                params={"detail": "team.create_permission_denied"}
             )
 
         existing_team = await self.repository.get_by_name(team.name)
         if existing_team:
-            raise HTTPException(status_code=400, detail="This name already exists")
+            raise DuplicateEntityException(
+                key="team.name_exists", params={"name": team.name}
+            )
 
         # The repository now handles reloading with relationships automatically
         return await self.repository.create(team.model_dump())
@@ -35,7 +42,7 @@ class TeamService:
     async def get_team_by_id(self, id: int) -> Team:
         team = await self.repository.get(id)
         if not team:
-            raise HTTPException(status_code=404, detail="Team not found")
+            raise EntityNotFoundException(entity="Team", params={"id": id})
         return team
 
     async def update_team(
@@ -45,15 +52,17 @@ class TeamService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to update teams"
+            raise PermissionDeniedException(
+                params={"detail": "team.update_permission_denied"}
             )
         team = await self.get_team_by_id(id)
 
         if team_update.name != team.name:
             existing_team = await self.repository.get_by_name(team_update.name)
             if existing_team:
-                raise HTTPException(status_code=400, detail="This name already exists")
+                raise DuplicateEntityException(
+                    key="team.name_exists", params={"name": team_update.name}
+                )
 
         return await self.repository.update(
             id, team_update.model_dump(exclude_unset=True)
@@ -62,8 +71,18 @@ class TeamService:
     async def get_all_teams(self) -> List[Team]:
         return await self.repository.get_all()
 
-    async def delete_team(self, id: int) -> bool:
-        return await self.repository.delete(id)
+    async def delete_team(self, id: int, current_user: UserRead) -> bool:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
+        ):
+            raise PermissionDeniedException(
+                params={"detail": "team.delete_permission_denied"}
+            )
+        deleted = await self.repository.delete(id)
+        if not deleted:
+            raise EntityNotFoundException(entity="Team", params={"id": id})
+        return True
 
 
 # Dependencies

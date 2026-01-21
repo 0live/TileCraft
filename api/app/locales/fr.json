@@ -23,5 +23,12 @@
     "create_permission_denied": "Vous n'avez pas la permission de créer des cartes.",
     "delete_permission_denied": "Vous n'avez pas la permission de supprimer des cartes.",
     "update_permission_denied": "Vous n'avez pas la permission de modifier des cartes."
+  },
+  "team": {
+    "not_found": "Équipe non trouvée.",
+    "name_exists": "Une équipe avec le nom '{name}' existe déjà.",
+    "create_permission_denied": "Vous n'avez pas la permission de créer des équipes.",
+    "update_permission_denied": "Vous n'avez pas la permission de modifier des équipes.",
+    "delete_permission_denied": "Vous n'avez pas la permission de supprimer des équipes."
   }
 }

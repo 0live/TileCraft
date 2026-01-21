@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Annotated, List
 
 from fastapi import Depends
@@ -37,11 +36,7 @@ class TeamService:
                 key="team.name_exists", params={"name": team.name}
             )
 
-        team_data = team.model_dump()
-        team_data["created_by_id"] = current_user.id
-        team_data["updated_by_id"] = current_user.id
-        team_data["created_at"] = datetime.utcnow()
-        team_data["updated_at"] = datetime.utcnow()
+        team_data = Team.add_audit_info(team.model_dump(), current_user.id)
         return await self.repository.create(team_data)
 
     async def get_team_by_id(self, id: int) -> Team:
@@ -70,8 +65,7 @@ class TeamService:
                 )
 
         update_data = team_update.model_dump(exclude_unset=True)
-        update_data["updated_by_id"] = current_user.id
-        update_data["updated_at"] = datetime.utcnow()
+        update_data = Team.add_audit_info(update_data, current_user.id)
         return await self.repository.update(id, update_data)
 
     async def get_all_teams(self) -> List[Team]:

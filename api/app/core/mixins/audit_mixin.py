@@ -16,3 +16,14 @@ class AuditMixin(SQLModel):
         sa_column_kwargs={"onupdate": func.now(), "server_default": func.now()},
     )
     updated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+    @classmethod
+    def add_audit_info(cls, data: dict, user_id: int):
+        now = datetime.utcnow()
+        data["updated_at"] = now
+        data["updated_by_id"] = user_id
+        if "created_at" not in data:
+            data["created_at"] = now
+        if "created_by_id" not in data:
+            data["created_by_id"] = user_id
+        return data

@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from app.core.auth_dependencies import get_current_user
+from app.core.security import get_current_user
 from app.modules.maps.schemas import MapCreate, MapRead, MapUpdate
 from app.modules.maps.service import MapServiceDep
 from app.modules.users.schemas import UserRead

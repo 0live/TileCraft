@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Annotated, Optional
 
 import bcrypt
 import jwt
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import InvalidTokenError
 
 from app.core.config import Settings
+from app.core.exceptions import AuthenticationException
 from app.modules.auth.schemas import Token
 from app.modules.users.schemas import UserRead
 
@@ -57,3 +60,29 @@ def get_token(user: UserRead, settings: Settings) -> Token:
     """Generate a Token response for a user."""
     token = create_access_token(data={**user.model_dump()}, settings=settings)
     return Token(access_token=token, token_type="bearer")
+
+
+# =============================================================================
+# Auth Dependencies
+# =============================================================================
+
+from app.modules.users.service import UserServiceDep
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    service: UserServiceDep,
+) -> UserRead:
+    """Get current authenticated user from token."""
+    try:
+        payload = decode_token(token, settings=service.settings)
+        username = payload.get("username")
+        if username is None:
+            raise AuthenticationException(params={"detail": "auth.invalid_credentials"})
+    except InvalidTokenError:
+        raise AuthenticationException(params={"detail": "auth.invalid_credentials"})
+
+    user = await service.get_by_username(username)
+    if user is None:
+        raise AuthenticationException(params={"detail": "auth.user_not_found"})
+    return UserRead.model_validate(user)

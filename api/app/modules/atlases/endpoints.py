@@ -1,7 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from app.core.auth_dependencies import get_current_user
 from app.modules.atlases.schemas import (
     AtlasBase,
     AtlasRead,
@@ -11,7 +12,6 @@ from app.modules.atlases.schemas import (
 )
 from app.modules.atlases.service import AtlasServiceDep
 from app.modules.users.schemas import UserRead
-from app.modules.users.service import get_current_user
 
 atlasesRouter = APIRouter(prefix="/atlases", tags=["Atlases"])
 
@@ -20,10 +20,6 @@ atlasesRouter = APIRouter(prefix="/atlases", tags=["Atlases"])
 async def get_all_atlases(
     service: AtlasServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_all_atlases()
 
 
@@ -33,10 +29,6 @@ async def get_atlas(
     service: AtlasServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_atlas(atlas_id)
 
 

@@ -1,11 +1,11 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from app.core.auth_dependencies import get_current_user
 from app.modules.maps.schemas import MapCreate, MapRead, MapUpdate
 from app.modules.maps.service import MapServiceDep
 from app.modules.users.schemas import UserRead
-from app.modules.users.service import get_current_user
 
 mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 
@@ -14,10 +14,6 @@ mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 async def get_all_maps(
     service: MapServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_all_maps()
 
 
@@ -27,10 +23,6 @@ async def get_map(
     service: MapServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_map(map_id)
 
 

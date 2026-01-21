@@ -2,11 +2,11 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.auth_dependencies import get_current_user
 from app.modules.teams.schemas import TeamBase, TeamRead, TeamUpdate
 from app.modules.teams.service import TeamServiceDep
 from app.modules.users.models import UserRole
 from app.modules.users.schemas import UserRead
-from app.modules.users.service import get_current_user
 
 teamsRouter = APIRouter(prefix="/teams", tags=["Teams"])
 
@@ -15,10 +15,6 @@ teamsRouter = APIRouter(prefix="/teams", tags=["Teams"])
 async def get_all_teams(
     service: TeamServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_all_teams()
 
 
@@ -28,10 +24,6 @@ async def get_team(
     service: TeamServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.get_team_by_id(team_id)
 
 
@@ -42,10 +34,6 @@ async def update_team(
     service: TeamServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     if all(
         role not in current_user.roles
         for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
@@ -71,8 +59,4 @@ async def delete_team(
     service: TeamServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if current_user is None:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be logged in"
-        )
     return await service.delete_team(team_id)

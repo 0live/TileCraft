@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     private_key: str = "your_default_secret_key_change_me"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 120
+    locale: str = "en"
 
     # Database components
     postgres_user: str = "default"

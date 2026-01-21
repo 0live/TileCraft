@@ -5,6 +5,21 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
 from app.core.database import sessionmanager
+from app.core.exceptions import (
+    AuthenticationException,
+    DomainException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+    TileCraftException,
+)
+from app.core.exceptions.handlers import (
+    authentication_exception_handler,
+    domain_exception_handler,
+    entity_not_found_handler,
+    permission_denied_handler,
+    tilecraft_exception_handler,
+)
+from app.core.messages import MessageService
 from app.modules.atlases.endpoints import atlasesRouter
 from app.modules.auth.endpoints import authRouter
 from app.modules.maps.endpoints import mapsRouter
@@ -15,6 +30,7 @@ from app.modules.users.endpoints import userRouter
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sessionmanager.init(str(get_settings().database_url))
+    MessageService.load_messages()
     yield
     await sessionmanager.close()
 
@@ -25,6 +41,12 @@ app = FastAPI(
     version="0.0.1",
     lifespan=lifespan,
 )
+
+app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)
+app.add_exception_handler(PermissionDeniedException, permission_denied_handler)
+app.add_exception_handler(AuthenticationException, authentication_exception_handler)
+app.add_exception_handler(DomainException, domain_exception_handler)
+app.add_exception_handler(TileCraftException, tilecraft_exception_handler)
 
 app.add_middleware(
     SessionMiddleware,

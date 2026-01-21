@@ -1,15 +1,12 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
-from jwt.exceptions import InvalidTokenError
+from fastapi import Depends, HTTPException
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
 from app.core.security import (
-    decode_token,
     get_token,
     hash_password,
-    oauth2_scheme,
     verify_password,
 )
 from app.modules.auth.schemas import Token
@@ -154,27 +151,3 @@ def get_user_service(session: SessionDep, settings: SettingsDep) -> UserService:
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-
-
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    service: UserServiceDep,
-) -> UserRead:
-    """Get current authenticated user from token."""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = decode_token(token, settings=service.settings)
-        username = payload.get("username")
-        if username is None:
-            raise credentials_exception
-    except InvalidTokenError:
-        raise credentials_exception
-
-    user = await service.get_by_username(username)
-    if user is None:
-        raise credentials_exception
-    return UserRead.model_validate(user)

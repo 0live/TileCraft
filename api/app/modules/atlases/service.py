@@ -1,9 +1,14 @@
 from typing import Annotated, List
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
+from app.core.exceptions import (
+    DomainException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+)
 from app.modules.atlases.models import Atlas
 from app.modules.atlases.repository import AtlasRepository
 from app.modules.atlases.schemas import (
@@ -27,13 +32,13 @@ class AtlasService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to create atlases"
+            raise PermissionDeniedException(
+                params={"detail": "atlas.create_permission_denied"}
             )
 
         existing_atlas = await self.repository.get_by_name(atlas.name)
         if existing_atlas:
-            raise HTTPException(status_code=400, detail="This name already exists")
+            raise DomainException(key="atlas.name_exists", params={"name": atlas.name})
 
         new_atlas = Atlas(**atlas.model_dump())
         self.repository.session.add(new_atlas)
@@ -53,7 +58,7 @@ class AtlasService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(status_code=403, detail="Forbidden")
+            raise PermissionDeniedException()
 
         atlas_dict = atlas_update.model_dump(exclude_unset=True, exclude={"teams"})
 
@@ -61,10 +66,12 @@ class AtlasService:
             updated_atlas = await self.repository.update(atlas_id, atlas_dict)
         except ValueError as e:
             # Catch the ValueError from repo (invalid map id)
-            raise HTTPException(status_code=404, detail=str(e))
+            # Assuming generic DomainException for now as it seems to be specific validation logic
+            # Ideally this should be more specific, but for now we wrap it.
+            raise DomainException(key="atlas.invalid_update", params={"detail": str(e)})
 
         if not updated_atlas:
-            raise HTTPException(status_code=404, detail="Atlas not found")
+            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
 
         return updated_atlas
 
@@ -77,16 +84,15 @@ class AtlasService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to add a team to an atlas",
+            raise PermissionDeniedException(
+                params={"detail": "atlas.link_permission_denied"}
             )
 
         try:
             result = await self.repository.upsert_team_link(link.model_dump())
             return AtlasTeamLinkRead(**result.model_dump())
         except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise EntityNotFoundException(entity="TeamLink", params={"detail": str(e)})
 
     async def delete_atlas_team_link(
         self, atlas_id: int, team_id: int, current_user: UserRead
@@ -95,14 +101,13 @@ class AtlasService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403,
-                detail="You don't have permission to remove a team from an atlas",
+            raise PermissionDeniedException(
+                params={"detail": "atlas.link_permission_denied"}
             )
 
         deleted = await self.repository.delete_team_link(atlas_id, team_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail="Link not found")
+            raise DomainException(key="atlas.team_link_not_found")
         return True
 
     async def get_all_atlases(self) -> List[Atlas]:
@@ -111,7 +116,7 @@ class AtlasService:
     async def get_atlas(self, atlas_id: int) -> Atlas:
         atlas = await self.repository.get(atlas_id)
         if not atlas:
-            raise HTTPException(status_code=404, detail="Atlas not found")
+            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
         return atlas
 
     async def delete_atlas(self, atlas_id: int, current_user: UserRead) -> bool:
@@ -119,13 +124,13 @@ class AtlasService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to delete atlases"
+            raise PermissionDeniedException(
+                params={"detail": "atlas.delete_permission_denied"}
             )
 
         deleted = await self.repository.delete(atlas_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail="Atlas not found")
+            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
         return True
 
 

@@ -1,0 +1,21 @@
+{
+  "entity": {
+    "not_found": "{entity} non trouvé."
+  },
+  "permission": {
+    "denied": "Permission refusée."
+  },
+  "auth": {
+    "failed": "Authentification échouée.",
+    "invalid_credentials": "Impossible de valider les identifiants.",
+    "user_not_found": "Opération non autorisée, vous devez être connecté."
+  },
+  "atlas": {
+    "not_found": "Atlas non trouvé.",
+    "name_exists": "Un atlas avec le nom '{name}' existe déjà.",
+    "create_permission_denied": "Vous n'avez pas la permission de créer des atlas.",
+    "delete_permission_denied": "Vous n'avez pas la permission de supprimer des atlas.",
+    "link_permission_denied": "Vous n'avez pas la permission de gérer les liens d'équipe pour cet atlas.",
+    "team_link_not_found": "Lien d'équipe non trouvé."
+  }
+}

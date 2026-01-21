@@ -1,9 +1,15 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
+from app.core.exceptions import (
+    AuthenticationException,
+    DuplicateEntityException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+)
 from app.core.security import (
     get_token,
     hash_password,
@@ -33,33 +39,42 @@ class UserService:
     async def create_user(self, user: UserCreate) -> UserRead:
         """Create a new user (used for testing, prefer auth/register for production)."""
         # Check email uniqueness
-        # Although repository create might catch integrity error, explicit check is often better for error msgs
         existing_email_user = await self.repository.get_by_email(user.email)
         if existing_email_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise DuplicateEntityException(
+                key="user.email_exists", params={"email": user.email}
+            )
 
         existing_username = await self.repository.get_by_username(user.username)
         if existing_username:
-            raise HTTPException(status_code=400, detail="Username already registered")
+            raise DuplicateEntityException(
+                key="user.username_exists", params={"username": user.username}
+            )
 
         hashed_pw = hash_password(user.password)
         user_data = user.model_dump(exclude={"password", "roles", "teams"})
         user_data["hashed_password"] = hashed_pw
         user_data["roles"] = [UserRole.USER]
 
-        # Use repository create
         new_user = await self.repository.create(user_data)
-
-        # We can return this directly as repository.create now reloads relations
         return UserRead.model_validate(new_user)
 
-    async def get_all_users(self) -> list[User]:
+    async def get_all_users(self, current_user: UserRead) -> list[User]:
+        if UserRole.ADMIN not in current_user.roles:
+            raise PermissionDeniedException(
+                params={"detail": "user.list_permission_denied"}
+            )
         return await self.repository.get_all()
 
-    async def get_user_by_id(self, user_id: int) -> User:
+    async def get_user_by_id(self, user_id: int, current_user: UserRead) -> User:
+        if UserRole.ADMIN not in current_user.roles and current_user.id != user_id:
+            raise PermissionDeniedException(
+                params={"detail": "user.read_permission_denied"}
+            )
+
         user = await self.repository.get(user_id)
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise EntityNotFoundException(entity="User", params={"id": user_id})
         return user
 
     async def get_by_username(self, username: str) -> Optional[User]:
@@ -73,18 +88,26 @@ class UserService:
         user = await self.get_by_username(username)
         if user and verify_password(password, user.hashed_password):
             return get_token(UserRead.model_validate(user), settings=self.settings)
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise AuthenticationException()
 
-    async def delete_user(self, user_id: int) -> bool:
-        return await self.repository.delete(user_id)
+    async def delete_user(self, user_id: int, current_user: UserRead) -> bool:
+        if UserRole.ADMIN not in current_user.roles:
+            raise PermissionDeniedException(
+                params={"detail": "user.delete_permission_denied"}
+            )
+        deleted = await self.repository.delete(user_id)
+        if not deleted:
+            raise EntityNotFoundException(entity="User", params={"id": user_id})
+        return True
 
     async def update_user(
         self, user_id: int, user_update: UserUpdate, current_user: UserRead
     ) -> UserRead:
         if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
-            raise HTTPException(status_code=403, detail="Forbidden")
+            raise PermissionDeniedException(
+                params={"detail": "user.update_permission_denied"}
+            )
 
-        # Prepare update dictionary
         update_data = user_update.model_dump(
             exclude_unset=True, exclude={"password", "roles", "teams"}
         )
@@ -95,45 +118,32 @@ class UserService:
 
         if user_update.roles is not None:
             if UserRole.ADMIN not in current_user.roles:
-                raise HTTPException(
-                    status_code=403, detail="Only admin can change roles"
+                raise PermissionDeniedException(
+                    params={"detail": "user.role_permission_denied"}
                 )
-            # Ensure roles is a list
             update_data["roles"] = user_update.roles
 
-        # Handle teams relationship
         if user_update.teams is not None:
             if all(
                 role not in current_user.roles
                 for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
             ):
-                raise HTTPException(
-                    status_code=403, detail="You don't have permission to change teams"
+                raise PermissionDeniedException(
+                    params={"detail": "user.team_permission_denied"}
                 )
 
-            # Fetch team objects
             teams_to_link = []
             for team_id in user_update.teams:
                 team = await self.team_repository.get(team_id)
                 if not team:
-                    raise HTTPException(
-                        status_code=404, detail=f"Team {team_id} not found"
-                    )
+                    raise EntityNotFoundException(entity="Team", params={"id": team_id})
                 teams_to_link.append(team)
 
-            # We can't easily pass list of objects to 'update' via dict if we rely on
-            # Pydantic or SQLModel automatic handling usually expects IDs for foreign keys,
-            # but for Many-to-Many via SQLModel Relationship, we often need to set the list of objects on the instance.
-            # The BaseRepository.update takes a dict and does setattr.
-            # setattr(user_db, "teams", teams_to_link) will work for SQLAlchemy relationships.
             update_data["teams"] = teams_to_link
 
-        # Use repository update
-        # Since we might have complex objects in update_data (teams list),
-        # let's verify BaseRepository.update handles it.
-        # BaseRepository.update: for key, value in attributes.items(): setattr(db_obj, key, value)
-        # This works perfectly for SA relationships.
         updated_user = await self.repository.update(user_id, update_data)
+        if not updated_user:
+            raise EntityNotFoundException(entity="User", params={"id": user_id})
         return UserRead.model_validate(updated_user)
 
 

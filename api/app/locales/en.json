@@ -30,5 +30,16 @@
     "create_permission_denied": "You don't have permission to create teams.",
     "update_permission_denied": "You don't have permission to update teams.",
     "delete_permission_denied": "You don't have permission to delete teams."
+  },
+  "user": {
+    "not_found": "User not found.",
+    "email_exists": "User with email '{email}' already exists.",
+    "username_exists": "User with username '{username}' already exists.",
+    "list_permission_denied": "You don't have permission to list users.",
+    "read_permission_denied": "You don't have permission to read this user profile.",
+    "update_permission_denied": "You don't have permission to update this user.",
+    "delete_permission_denied": "You don't have permission to delete users.",
+    "role_permission_denied": "You don't have permission to change roles.",
+    "team_permission_denied": "You don't have permission to change teams."
   }
 }

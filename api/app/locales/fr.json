@@ -30,5 +30,16 @@
     "create_permission_denied": "Vous n'avez pas la permission de créer des équipes.",
     "update_permission_denied": "Vous n'avez pas la permission de modifier des équipes.",
     "delete_permission_denied": "Vous n'avez pas la permission de supprimer des équipes."
+  },
+  "user": {
+    "not_found": "Utilisateur non trouvé.",
+    "email_exists": "Un utilisateur avec l'email '{email}' existe déjà.",
+    "username_exists": "Un utilisateur avec le nom '{username}' existe déjà.",
+    "list_permission_denied": "Vous n'avez pas la permission de lister les utilisateurs.",
+    "read_permission_denied": "Vous n'avez pas la permission de voir ce profil utilisateur.",
+    "update_permission_denied": "Vous n'avez pas la permission de modifier cet utilisateur.",
+    "delete_permission_denied": "Vous n'avez pas la permission de supprimer des utilisateurs.",
+    "role_permission_denied": "Vous n'avez pas la permission de changer les rôles.",
+    "team_permission_denied": "Vous n'avez pas la permission de changer les équipes."
   }
 }

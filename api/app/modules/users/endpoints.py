@@ -1,9 +1,9 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.core.auth_dependencies import get_current_user
-from app.modules.users.models import User, UserRole
+from app.modules.users.models import User
 from app.modules.users.schemas import UserRead, UserUpdate
 from app.modules.users.service import UserServiceDep
 
@@ -14,11 +14,7 @@ userRouter = APIRouter(prefix="/users", tags=["Users"])
 async def get_all_users(
     service: UserServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    if UserRole.ADMIN not in current_user.roles:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be an admin"
-        )
-    return await service.get_all_users()
+    return await service.get_all_users(current_user)
 
 
 @userRouter.get("/me", response_model=UserRead)
@@ -32,11 +28,7 @@ async def get_user(
     service: UserServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if UserRole.ADMIN not in current_user.roles and current_user.id != user_id:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be an admin"
-        )
-    return await service.get_user_by_id(user_id)
+    return await service.get_user_by_id(user_id, current_user)
 
 
 @userRouter.patch("/{user_id}", response_model=UserRead)
@@ -55,11 +47,5 @@ async def delete_user(
     service: UserServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    if UserRole.ADMIN not in current_user.roles:
-        raise HTTPException(
-            status_code=403, detail="Permission denied, you must be an admin"
-        )
-    success = await service.delete_user(user_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="User not found")
+    await service.delete_user(user_id, current_user)
     return {"message": "User deleted successfully"}

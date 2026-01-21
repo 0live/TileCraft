@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, List, Optional
 
 from fastapi import Depends
@@ -45,8 +46,12 @@ class MapService:
         if not atlas.first():
             raise EntityNotFoundException(entity="Atlas", params={"id": map.atlas_id})
 
-        # Create Map (atlas_id is included in map.model_dump())
-        new_map = await self.repository.create(map.model_dump())
+        map_data = map.model_dump()
+        map_data["created_by_id"] = current_user.id
+        map_data["updated_by_id"] = current_user.id
+        map_data["created_at"] = datetime.utcnow()
+        map_data["updated_at"] = datetime.utcnow()
+        new_map = await self.repository.create(map_data)
         return await self.repository.get_by_name(new_map.name)
 
     async def update_map(
@@ -67,9 +72,11 @@ class MapService:
         if not map_db:
             raise EntityNotFoundException(entity="Map", params={"id": map_id})
 
-        updated_map = await self.repository.update(
-            map_id, map_update.model_dump(exclude_unset=True)
-        )
+        update_data = map_update.model_dump(exclude_unset=True)
+        update_data["updated_by_id"] = current_user.id
+        update_data["updated_at"] = datetime.utcnow()
+
+        updated_map = await self.repository.update(map_id, update_data)
         if not updated_map:
             raise EntityNotFoundException(entity="Map", params={"id": map_id})
 

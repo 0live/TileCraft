@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import ForeignKey
 from sqlmodel import Column, Field, Relationship, SQLModel
 
+from app.core.mixins.audit_mixin import AuditMixin
 from app.modules.atlases.models import Atlas, AtlasTeamLink
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ class UserTeamLink(SQLModel, table=True):
     )
 
 
-class Team(SQLModel, table=True):
+class Team(AuditMixin, SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     users: List["User"] = Relationship(

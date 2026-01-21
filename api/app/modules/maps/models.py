@@ -3,11 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import ForeignKey
 from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
 
+from app.core.mixins.audit_mixin import AuditMixin
+
 if TYPE_CHECKING:
     from app.modules.atlases.models import Atlas
 
 
-class Map(SQLModel, table=True):
+class Map(AuditMixin, SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     description: str = Field(sa_column=Column(TEXT))

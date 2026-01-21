@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, List
 
 from fastapi import Depends
@@ -43,7 +44,12 @@ class AtlasService:
                 key="atlas.name_exists", params={"name": atlas.name}
             )
 
-        new_atlas = Atlas(**atlas.model_dump())
+        atlas_data = atlas.model_dump()
+        atlas_data["created_by_id"] = current_user.id
+        atlas_data["created_at"] = datetime.utcnow()
+        atlas_data["updated_by_id"] = current_user.id
+        atlas_data["updated_at"] = datetime.utcnow()
+        new_atlas = Atlas(**atlas_data)
         self.repository.session.add(new_atlas)
         await self.repository.session.commit()
         await self.repository.session.refresh(new_atlas)
@@ -64,6 +70,8 @@ class AtlasService:
             raise PermissionDeniedException()
 
         atlas_dict = atlas_update.model_dump(exclude_unset=True, exclude={"teams"})
+        atlas_dict["updated_by_id"] = current_user.id
+        atlas_dict["updated_at"] = datetime.utcnow()
 
         try:
             updated_atlas = await self.repository.update(atlas_id, atlas_dict)

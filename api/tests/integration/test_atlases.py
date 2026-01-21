@@ -167,3 +167,30 @@ async def test_manage_atlas_team_link_lifecycle(
     resp = await client.delete(f"/atlases/{atlas_id}/team/{team_id}", headers=headers)
     assert resp.status_code == 200
     assert resp.json() is True
+
+
+@pytest.mark.asyncio
+async def test_create_duplicate_atlas(client: AsyncClient, auth_token_factory):
+    """
+    Verify that creating an atlas with a duplicate name returns 409 Conflict.
+    """
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Create first atlas
+    response = await client.post(
+        "/atlases",
+        json={"name": "Unique Atlas", "description": "desc"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    # 2. Try to create second atlas with same name
+    response = await client.post(
+        "/atlases",
+        json={"name": "Unique Atlas", "description": "desc"},
+        headers=headers,
+    )
+    assert response.status_code == 409
+    data = response.json()
+    assert data["key"] == "atlas.name_exists"

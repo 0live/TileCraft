@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List
 
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -13,16 +13,6 @@ class AtlasRepository(BaseRepository[Atlas]):
 
     def get_load_options(self) -> List[Any]:
         return [selectinload(Atlas.teams), selectinload(Atlas.maps)]
-
-    async def get_by_name(self, name: str) -> Optional[Atlas]:
-        """Get an atlas by name with relations loaded."""
-        from sqlmodel import select
-
-        query = select(self.model).where(self.model.name == name)
-        for option in self.get_load_options():
-            query = query.options(option)
-        result = await self.session.exec(query)
-        return result.first()
 
     async def upsert_team_link(self, link_data: dict) -> AtlasTeamLink:
         """

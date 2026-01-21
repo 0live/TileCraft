@@ -83,3 +83,17 @@ class BaseRepository(Generic[ModelType]):
         await self.session.delete(db_obj)
         await self.session.commit()
         return True
+
+    async def get_by_name(self, name: str) -> Optional[ModelType]:
+        """Get an entity by name with eager-loaded relations."""
+        # Note: This assumes the model has a 'name' attribute.
+        if not hasattr(self.model, "name"):
+            # Or log a warning/return None if strictness is desired
+            # For now, we assume models using this have 'name'
+            return None
+
+        query = select(self.model).where(getattr(self.model, "name") == name)
+        for option in self.get_load_options():
+            query = query.options(option)
+        result = await self.session.exec(query)
+        return result.first()

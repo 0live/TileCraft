@@ -24,7 +24,7 @@ class AtlasTeamLink(SQLModel, table=True):
 
 class Atlas(AuditMixin, SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
+    name: str = Field(unique=True, index=True)
     description: str = Field(sa_column=Column(TEXT))
     teams: List["Team"] = Relationship(
         back_populates="atlases",

@@ -4,15 +4,18 @@ from fastapi.responses import JSONResponse
 from app.core.messages import MessageService
 
 from . import (
+    APIException,
     DomainException,
-    TileCraftException,
+    DuplicateEntityException,
 )
 
 
-async def domain_exception_handler(request: Request, exc: DomainException):
+async def duplicate_entity_exception_handler(
+    request: Request, exc: DuplicateEntityException
+):
     msg = MessageService.get_message(exc.key, **exc.params)
     return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status.HTTP_409_CONFLICT,
         content={"detail": msg, "key": exc.key, "params": exc.params},
     )
 
@@ -42,7 +45,15 @@ async def authentication_exception_handler(request: Request, exc: DomainExceptio
     )
 
 
-async def tilecraft_exception_handler(request: Request, exc: TileCraftException):
+async def domain_exception_handler(request: Request, exc: DomainException):
+    msg = MessageService.get_message(exc.key, **exc.params)
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": msg, "key": exc.key, "params": exc.params},
+    )
+
+
+async def api_exception_handler(request: Request, exc: APIException):
     # Fallback for generic TileCraft exceptions
     msg = MessageService.get_message(exc.key, **exc.params)
     return JSONResponse(

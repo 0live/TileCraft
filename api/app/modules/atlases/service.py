@@ -6,6 +6,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
 from app.core.exceptions import (
     DomainException,
+    DuplicateEntityException,
     EntityNotFoundException,
     PermissionDeniedException,
 )
@@ -38,7 +39,9 @@ class AtlasService:
 
         existing_atlas = await self.repository.get_by_name(atlas.name)
         if existing_atlas:
-            raise DomainException(key="atlas.name_exists", params={"name": atlas.name})
+            raise DuplicateEntityException(
+                key="atlas.name_exists", params={"name": atlas.name}
+            )
 
         new_atlas = Atlas(**atlas.model_dump())
         self.repository.session.add(new_atlas)

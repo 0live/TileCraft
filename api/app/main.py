@@ -6,18 +6,20 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.core.config import get_settings
 from app.core.database import sessionmanager
 from app.core.exceptions import (
+    APIException,
     AuthenticationException,
     DomainException,
+    DuplicateEntityException,
     EntityNotFoundException,
     PermissionDeniedException,
-    TileCraftException,
 )
 from app.core.exceptions.handlers import (
+    api_exception_handler,
     authentication_exception_handler,
     domain_exception_handler,
+    duplicate_entity_exception_handler,
     entity_not_found_handler,
     permission_denied_handler,
-    tilecraft_exception_handler,
 )
 from app.core.messages import MessageService
 from app.modules.atlases.endpoints import atlasesRouter
@@ -43,10 +45,11 @@ app = FastAPI(
 )
 
 app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)
+app.add_exception_handler(DuplicateEntityException, duplicate_entity_exception_handler)
 app.add_exception_handler(PermissionDeniedException, permission_denied_handler)
 app.add_exception_handler(AuthenticationException, authentication_exception_handler)
 app.add_exception_handler(DomainException, domain_exception_handler)
-app.add_exception_handler(TileCraftException, tilecraft_exception_handler)
+app.add_exception_handler(APIException, api_exception_handler)
 
 app.add_middleware(
     SessionMiddleware,

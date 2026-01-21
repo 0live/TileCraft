@@ -1,10 +1,15 @@
 from typing import Annotated, List, Optional
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from sqlmodel import select
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
+from app.core.exceptions import (
+    DuplicateEntityException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+)
 from app.modules.atlases.models import Atlas
 from app.modules.maps.models import Map
 from app.modules.maps.repository import MapRepository
@@ -23,20 +28,22 @@ class MapService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to create maps"
+            raise PermissionDeniedException(
+                params={"detail": "map.create_permission_denied"}
             )
 
         existing_map = await self.repository.get_by_name(map.name)
         if existing_map:
-            raise HTTPException(status_code=400, detail="This name already exists")
+            raise DuplicateEntityException(
+                key="map.name_exists", params={"name": map.name}
+            )
 
         # Verify Atlas exists
         atlas = await self.repository.session.exec(
             select(Atlas).where(Atlas.id == map.atlas_id)
         )
         if not atlas.first():
-            raise HTTPException(status_code=404, detail="Atlas not found")
+            raise EntityNotFoundException(entity="Atlas", params={"id": map.atlas_id})
 
         # Create Map (atlas_id is included in map.model_dump())
         new_map = await self.repository.create(map.model_dump())
@@ -52,26 +59,26 @@ class MapService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(status_code=403, detail="Forbidden")
+            raise PermissionDeniedException(
+                params={"detail": "map.update_permission_denied"}
+            )
 
         map_db = await self.repository.get(map_id)
         if not map_db:
-            raise HTTPException(status_code=404, detail="Map not found")
+            raise EntityNotFoundException(entity="Map", params={"id": map_id})
 
-        # We exclude unset fields.
-        # Note: MapUpdate schema no longer has 'atlas_id' (immutable).
         updated_map = await self.repository.update(
             map_id, map_update.model_dump(exclude_unset=True)
         )
         if not updated_map:
-            raise HTTPException(status_code=404, detail="Map not found")
+            raise EntityNotFoundException(entity="Map", params={"id": map_id})
 
         return updated_map
 
     async def get_map(self, map_id: int) -> Optional[Map]:
         map_obj = await self.repository.get(map_id)
         if not map_obj:
-            raise HTTPException(status_code=404, detail="Map not found")
+            raise EntityNotFoundException(entity="Map", params={"id": map_id})
         return map_obj
 
     async def delete_map(self, map_id: int, current_user: UserRead) -> bool:
@@ -79,13 +86,13 @@ class MapService:
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
-            raise HTTPException(
-                status_code=403, detail="You don't have permission to delete maps"
+            raise PermissionDeniedException(
+                params={"detail": "map.delete_permission_denied"}
             )
 
         deleted = await self.repository.delete(map_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail="Map not found")
+            raise EntityNotFoundException(entity="Map", params={"id": map_id})
         return True
 
     async def get_all_maps(self) -> List[Map]:

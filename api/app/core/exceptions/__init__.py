@@ -1,8 +1,8 @@
 from typing import Any, Dict, Optional
 
 
-class TileCraftException(Exception):
-    """Base exception for all TileCraft exceptions."""
+class APIException(Exception):
+    """Base exception for all API exceptions."""
 
     def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
         self.key = key
@@ -12,7 +12,7 @@ class TileCraftException(Exception):
         super().__init__(f"{key} - {self.params}")
 
 
-class DomainException(TileCraftException):
+class DomainException(APIException):
     """Exception raised when a business rule is violated."""
 
     pass
@@ -40,4 +40,11 @@ class AuthenticationException(DomainException):
     def __init__(
         self, key: str = "auth.failed", params: Optional[Dict[str, Any]] = None
     ):
+        super().__init__(key=key, params=params)
+
+
+class DuplicateEntityException(DomainException):
+    """Exception raised when an entity already exists."""
+
+    def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
         super().__init__(key=key, params=params)

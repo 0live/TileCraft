@@ -30,4 +30,7 @@ class Atlas(SQLModel, table=True):
         link_model=AtlasTeamLink,
         sa_relationship_kwargs={"passive_deletes": True},
     )
-    maps: List["Map"] = Relationship(back_populates="atlas")
+    maps: List["Map"] = Relationship(
+        back_populates="atlas",
+        sa_relationship_kwargs={"passive_deletes": True},
+    )

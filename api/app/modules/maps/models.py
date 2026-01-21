@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import ForeignKey
 from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -11,5 +12,5 @@ class Map(SQLModel, table=True):
     name: str
     description: str = Field(sa_column=Column(TEXT))
     style: str
-    atlas_id: int = Field(foreign_key="atlas.id")
+    atlas_id: int = Field(sa_column=Column(ForeignKey("atlas.id", ondelete="CASCADE")))
     atlas: "Atlas" = Relationship(back_populates="maps")

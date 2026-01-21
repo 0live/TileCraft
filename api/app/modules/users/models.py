@@ -23,4 +23,8 @@ class User(SQLModel, table=True):
     email: EmailStr = Field(unique=True, index=True)
     hashed_password: str
     roles: List[UserRole] = Field(sa_column=Column(ARRAY(SAEnum(UserRole))))
-    teams: List["Team"] = Relationship(back_populates="users", link_model=UserTeamLink)
+    teams: List["Team"] = Relationship(
+        back_populates="users",
+        link_model=UserTeamLink,
+        sa_relationship_kwargs={"passive_deletes": True},
+    )

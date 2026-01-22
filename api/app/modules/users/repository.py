@@ -13,22 +13,28 @@ class UserRepository(BaseRepository[User]):
     def get_load_options(self) -> List[Any]:
         return [selectinload(User.teams).selectinload(Team.users)]
 
-    async def get_by_username(self, username: str) -> Optional[User]:
-        """Get a user by username with teams loaded."""
+    async def get_by_username(
+        self, username: str, options: Optional[List[Any]] = None
+    ) -> Optional[User]:
+        """Get a user by username with eager-loaded relations."""
         from sqlmodel import select
 
         query = select(self.model).where(self.model.username == username)
-        for option in self.get_load_options():
+        query_options = self.get_load_options() if options is None else options
+        for option in query_options:
             query = query.options(option)
         result = await self.session.exec(query)
         return result.first()
 
-    async def get_by_email(self, email: str) -> Optional[User]:
-        """Get a user by email with teams loaded."""
+    async def get_by_email(
+        self, email: str, options: Optional[List[Any]] = None
+    ) -> Optional[User]:
+        """Get a user by email with eager-loaded relations."""
         from sqlmodel import select
 
         query = select(self.model).where(self.model.email == email)
-        for option in self.get_load_options():
+        query_options = self.get_load_options() if options is None else options
+        for option in query_options:
             query = query.options(option)
         result = await self.session.exec(query)
         return result.first()

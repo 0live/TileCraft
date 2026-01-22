@@ -30,7 +30,7 @@ class TeamService:
                 params={"detail": "team.create_permission_denied"}
             )
 
-        existing_team = await self.repository.get_by_name(team.name)
+        existing_team = await self.repository.get_by_name(team.name, options=[])
         if existing_team:
             raise DuplicateEntityException(
                 key="team.name_exists", params={"name": team.name}
@@ -60,7 +60,9 @@ class TeamService:
         team = await self.get_team_by_id(id)
 
         if team_update.name != team.name:
-            existing_team = await self.repository.get_by_name(team_update.name)
+            existing_team = await self.repository.get_by_name(
+                team_update.name, options=[]
+            )
             if existing_team:
                 raise DuplicateEntityException(
                     key="team.name_exists", params={"name": team_update.name}

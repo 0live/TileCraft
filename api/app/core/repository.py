@@ -39,18 +39,22 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(db_obj)
         return db_obj
 
-    async def get(self, id: int) -> Optional[ModelType]:
+    async def get(
+        self, id: int, options: Optional[List[Any]] = None
+    ) -> Optional[ModelType]:
         """Get an entity by ID with eager-loaded relations."""
         query = select(self.model).where(self.model.id == id)
-        for option in self.get_load_options():
+        query_options = self.get_load_options() if options is None else options
+        for option in query_options:
             query = query.options(option)
         result = await self.session.exec(query)
         return result.first()
 
-    async def get_all(self) -> List[ModelType]:
+    async def get_all(self, options: Optional[List[Any]] = None) -> List[ModelType]:
         """Get all entities with eager-loaded relations."""
         query = select(self.model)
-        for option in self.get_load_options():
+        query_options = self.get_load_options() if options is None else options
+        for option in query_options:
             query = query.options(option)
         result = await self.session.exec(query)
         return list(result.all())
@@ -84,7 +88,9 @@ class BaseRepository(Generic[ModelType]):
         await self.session.commit()
         return True
 
-    async def get_by_name(self, name: str) -> Optional[ModelType]:
+    async def get_by_name(
+        self, name: str, options: Optional[List[Any]] = None
+    ) -> Optional[ModelType]:
         """Get an entity by name with eager-loaded relations."""
         # Note: This assumes the model has a 'name' attribute.
         if not hasattr(self.model, "name"):
@@ -93,7 +99,8 @@ class BaseRepository(Generic[ModelType]):
             return None
 
         query = select(self.model).where(getattr(self.model, "name") == name)
-        for option in self.get_load_options():
+        query_options = self.get_load_options() if options is None else options
+        for option in query_options:
             query = query.options(option)
         result = await self.session.exec(query)
         return result.first()

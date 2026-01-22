@@ -37,7 +37,7 @@ class AtlasService:
                 params={"detail": "atlas.create_permission_denied"}
             )
 
-        existing_atlas = await self.repository.get_by_name(atlas.name)
+        existing_atlas = await self.repository.get_by_name(atlas.name, options=[])
         if existing_atlas:
             raise DuplicateEntityException(
                 key="atlas.name_exists", params={"name": atlas.name}

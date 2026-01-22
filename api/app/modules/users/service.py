@@ -39,13 +39,15 @@ class UserService:
     async def create_user(self, user: UserCreate) -> UserRead:
         """Create a new user (used for testing, prefer auth/register for production)."""
         # Check email uniqueness
-        existing_email_user = await self.repository.get_by_email(user.email)
+        existing_email_user = await self.repository.get_by_email(user.email, options=[])
         if existing_email_user:
             raise DuplicateEntityException(
                 key="user.email_exists", params={"email": user.email}
             )
 
-        existing_username = await self.repository.get_by_username(user.username)
+        existing_username = await self.repository.get_by_username(
+            user.username, options=[]
+        )
         if existing_username:
             raise DuplicateEntityException(
                 key="user.username_exists", params={"username": user.username}

@@ -82,12 +82,39 @@ class Seeder:
         session.add_all([admin, editor, user])
         if commit:
             await session.commit()
+            await session.refresh(admin)
+            await session.refresh(editor)
+        else:
+            await session.flush()
+
+        admin_id = admin.id
+        editor_id = editor.id
+
+        # Update Teams with creator (since they were created before users)
+        team1.created_by_id = admin_id
+        team1.updated_by_id = admin_id
+        team2.created_by_id = admin_id
+        team2.updated_by_id = admin_id
+        session.add(team1)
+        session.add(team2)
+        if commit:
+            await session.commit()
         else:
             await session.flush()
 
         # --- 3. Create Atlases ---
-        atlas1 = Atlas(name="Atlas 1", description="Only editor has access")
-        atlas2 = Atlas(name="Atlas 2", description="Everyone has access")
+        atlas1 = Atlas(
+            name="Atlas 1",
+            description="Only editor has access",
+            created_by_id=editor_id,
+            updated_by_id=editor_id,
+        )
+        atlas2 = Atlas(
+            name="Atlas 2",
+            description="Everyone has access",
+            created_by_id=editor_id,
+            updated_by_id=editor_id,
+        )
 
         session.add(atlas1)
         session.add(atlas2)
@@ -132,18 +159,24 @@ class Seeder:
             description="First map in Atlas 1",
             style="dark",
             atlas_id=atlas1_id,
+            created_by_id=editor_id,
+            updated_by_id=editor_id,
         )
         map2 = Map(
             name="Map 2",
             description="Second map in Atlas 1",
             style="light",
             atlas_id=atlas1_id,
+            created_by_id=editor_id,
+            updated_by_id=editor_id,
         )
         map3 = Map(
             name="Map 3",
             description="Map in Atlas 2",
             style="satellite",
             atlas_id=atlas2_id,
+            created_by_id=editor_id,
+            updated_by_id=editor_id,
         )
 
         session.add_all([map1, map2, map3])

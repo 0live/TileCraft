@@ -32,7 +32,9 @@ class MapService:
                 params={"detail": "map.create_permission_denied"}
             )
 
-        existing_map = await self.repository.get_by_name(map.name)
+        existing_map = await self.repository.get_by_atlas_and_name(
+            map.atlas_id, map.name
+        )
         if existing_map:
             raise DuplicateEntityException(
                 key="map.name_exists", params={"name": map.name}
@@ -68,6 +70,20 @@ class MapService:
             raise EntityNotFoundException(entity="Map", params={"id": map_id})
 
         update_data = map_update.model_dump(exclude_unset=True)
+
+        # Check uniqueness if name or atlas_id is changing
+        new_name = update_data.get("name", map_db.name)
+        new_atlas_id = update_data.get("atlas_id", map_db.atlas_id)
+
+        if new_name != map_db.name or new_atlas_id != map_db.atlas_id:
+            existing_map = await self.repository.get_by_atlas_and_name(
+                new_atlas_id, new_name
+            )
+            if existing_map:
+                raise DuplicateEntityException(
+                    key="map.name_exists", params={"name": new_name}
+                )
+
         update_data = Map.add_audit_info(update_data, current_user.id)
 
         updated_map = await self.repository.update(map_id, update_data)

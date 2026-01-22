@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import ForeignKey
-from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
+from sqlmodel import TEXT, Column, Field, Relationship, SQLModel, UniqueConstraint
 
 from app.core.mixins.audit_mixin import AuditMixin
 
@@ -16,3 +16,5 @@ class Map(AuditMixin, SQLModel, table=True):
     style: str
     atlas_id: int = Field(sa_column=Column(ForeignKey("atlas.id", ondelete="CASCADE")))
     atlas: "Atlas" = Relationship(back_populates="maps")
+
+    __table_args__ = (UniqueConstraint("atlas_id", "name", name="uix_map_atlas_name"),)

@@ -189,3 +189,143 @@ async def test_get_delete_map(client: AsyncClient, auth_token_factory):
     # Get Map again (should be 404)
     response = await client.get(f"/maps/{map_id}", headers=headers)
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_duplicate_map_in_same_atlas(
+    client: AsyncClient, auth_token_factory
+):
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create Atlas
+    resp = await client.post(
+        "/atlases",
+        json={"name": "Atlas Unique", "description": "Atlas Desc"},
+        headers=headers,
+    )
+    atlas_id = resp.json()["id"]
+
+    # Create Map 1
+    await client.post(
+        "/maps",
+        json={
+            "name": "Map 1",
+            "style": "dark",
+            "description": "Test Map",
+            "atlas_id": atlas_id,
+        },
+        headers=headers,
+    )
+
+    # Create Duplicate Map
+    response = await client.post(
+        "/maps",
+        json={
+            "name": "Map 1",
+            "style": "light",
+            "description": "Duplicate Name",
+            "atlas_id": atlas_id,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_same_map_name_different_atlas(
+    client: AsyncClient, auth_token_factory
+):
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create Atlas 1
+    resp1 = await client.post(
+        "/atlases",
+        json={"name": "Atlas 1 Unique", "description": "Atlas Desc"},
+        headers=headers,
+    )
+    assert resp1.status_code == 200
+    atlas_id_1 = resp1.json()["id"]
+
+    # Create Atlas 2
+    resp2 = await client.post(
+        "/atlases",
+        json={"name": "Atlas 2 Unique", "description": "Atlas Desc"},
+        headers=headers,
+    )
+    assert resp2.status_code == 200
+    atlas_id_2 = resp2.json()["id"]
+
+    # Create Map in Atlas 1
+    resp = await client.post(
+        "/maps",
+        json={
+            "name": "Shared Name",
+            "style": "dark",
+            "description": "Test Map",
+            "atlas_id": atlas_id_1,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    # Create Map with same name in Atlas 2
+    response = await client.post(
+        "/maps",
+        json={
+            "name": "Shared Name",
+            "style": "light",
+            "description": "Same Name Diff Atlas",
+            "atlas_id": atlas_id_2,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_update_map_to_duplicate_name(client: AsyncClient, auth_token_factory):
+    token = await auth_token_factory("admin", "admin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create Atlas
+    resp = await client.post(
+        "/atlases",
+        json={"name": "Atlas Update", "description": "Atlas Desc"},
+        headers=headers,
+    )
+    atlas_id = resp.json()["id"]
+
+    # Create Map A
+    await client.post(
+        "/maps",
+        json={
+            "name": "Map A",
+            "style": "dark",
+            "description": "Test Map",
+            "atlas_id": atlas_id,
+        },
+        headers=headers,
+    )
+
+    # Create Map B
+    resp_b = await client.post(
+        "/maps",
+        json={
+            "name": "Map B",
+            "style": "light",
+            "description": "Test Map",
+            "atlas_id": atlas_id,
+        },
+        headers=headers,
+    )
+    map_id_b = resp_b.json()["id"]
+
+    # Update Map B to name "Map A"
+    response = await client.patch(
+        f"/maps/{map_id_b}",
+        json={"name": "Map A"},
+        headers=headers,
+    )
+    assert response.status_code == 409

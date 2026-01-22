@@ -20,6 +20,7 @@
   },
   "map": {
     "name_exists": "Map with name '{name}' already exists.",
+    "not_found": "Map not found.",
     "create_permission_denied": "You don't have permission to create maps.",
     "delete_permission_denied": "You don't have permission to delete maps.",
     "update_permission_denied": "You don't have permission to update maps."

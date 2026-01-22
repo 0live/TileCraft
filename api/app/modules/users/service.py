@@ -74,7 +74,9 @@ class UserService:
 
         user = await self.repository.get(user_id)
         if not user:
-            raise EntityNotFoundException(entity="User", params={"id": user_id})
+            raise EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": user_id}
+            )
         return user
 
     async def get_by_username(self, username: str) -> Optional[User]:
@@ -97,7 +99,9 @@ class UserService:
             )
         deleted = await self.repository.delete(user_id)
         if not deleted:
-            raise EntityNotFoundException(entity="User", params={"id": user_id})
+            raise EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": user_id}
+            )
         return True
 
     async def update_user(
@@ -136,14 +140,18 @@ class UserService:
             for team_id in user_update.teams:
                 team = await self.team_repository.get(team_id)
                 if not team:
-                    raise EntityNotFoundException(entity="Team", params={"id": team_id})
+                    raise EntityNotFoundException(
+                        entity="Team", key="team.not_found", params={"id": team_id}
+                    )
                 teams_to_link.append(team)
 
             update_data["teams"] = teams_to_link
 
         updated_user = await self.repository.update(user_id, update_data)
         if not updated_user:
-            raise EntityNotFoundException(entity="User", params={"id": user_id})
+            raise EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": user_id}
+            )
         return UserRead.model_validate(updated_user)
 
 

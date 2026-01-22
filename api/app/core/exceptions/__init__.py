@@ -21,10 +21,15 @@ class DomainException(APIException):
 class EntityNotFoundException(DomainException):
     """Exception raised when an entity is not found via ID or unique attribute."""
 
-    def __init__(self, entity: str, params: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        entity: str,
+        key: str = "entity.not_found",
+        params: Optional[Dict[str, Any]] = None,
+    ):
         p = params or {}
         p["entity"] = entity
-        super().__init__(key="entity.not_found", params=p)
+        super().__init__(key=key, params=p)
 
 
 class PermissionDeniedException(DomainException):

@@ -42,7 +42,9 @@ class TeamService:
     async def get_team_by_id(self, id: int) -> Team:
         team = await self.repository.get(id)
         if not team:
-            raise EntityNotFoundException(entity="Team", params={"id": id})
+            raise EntityNotFoundException(
+                entity="Team", key="team.not_found", params={"id": id}
+            )
         return team
 
     async def update_team(
@@ -81,7 +83,9 @@ class TeamService:
             )
         deleted = await self.repository.delete(id)
         if not deleted:
-            raise EntityNotFoundException(entity="Team", params={"id": id})
+            raise EntityNotFoundException(
+                entity="Team", key="team.not_found", params={"id": id}
+            )
         return True
 
 

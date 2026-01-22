@@ -76,7 +76,9 @@ class AtlasService:
             raise DomainException(key="atlas.invalid_update", params={"detail": str(e)})
 
         if not updated_atlas:
-            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
+            raise EntityNotFoundException(
+                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
+            )
 
         return updated_atlas
 
@@ -97,7 +99,11 @@ class AtlasService:
             result = await self.repository.upsert_team_link(link.model_dump())
             return AtlasTeamLinkRead(**result.model_dump())
         except ValueError as e:
-            raise EntityNotFoundException(entity="TeamLink", params={"detail": str(e)})
+            raise EntityNotFoundException(
+                entity="TeamLink",
+                key="atlas.team_link_not_found",
+                params={"detail": str(e)},
+            )
 
     async def delete_atlas_team_link(
         self, atlas_id: int, team_id: int, current_user: UserRead
@@ -121,7 +127,9 @@ class AtlasService:
     async def get_atlas(self, atlas_id: int) -> Atlas:
         atlas = await self.repository.get(atlas_id)
         if not atlas:
-            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
+            raise EntityNotFoundException(
+                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
+            )
         return atlas
 
     async def delete_atlas(self, atlas_id: int, current_user: UserRead) -> bool:
@@ -135,7 +143,9 @@ class AtlasService:
 
         deleted = await self.repository.delete(atlas_id)
         if not deleted:
-            raise EntityNotFoundException(entity="Atlas", params={"id": atlas_id})
+            raise EntityNotFoundException(
+                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
+            )
         return True
 
 

@@ -45,7 +45,9 @@ class MapService:
             select(Atlas).where(Atlas.id == map.atlas_id)
         )
         if not atlas.first():
-            raise EntityNotFoundException(entity="Atlas", params={"id": map.atlas_id})
+            raise EntityNotFoundException(
+                entity="Atlas", key="atlas.not_found", params={"id": map.atlas_id}
+            )
 
         map_data = Map.add_audit_info(map.model_dump(), current_user.id)
         new_map = await self.repository.create(map_data)
@@ -67,7 +69,9 @@ class MapService:
 
         map_db = await self.repository.get(map_id)
         if not map_db:
-            raise EntityNotFoundException(entity="Map", params={"id": map_id})
+            raise EntityNotFoundException(
+                entity="Map", key="map.not_found", params={"id": map_id}
+            )
 
         update_data = map_update.model_dump(exclude_unset=True)
 
@@ -88,14 +92,18 @@ class MapService:
 
         updated_map = await self.repository.update(map_id, update_data)
         if not updated_map:
-            raise EntityNotFoundException(entity="Map", params={"id": map_id})
+            raise EntityNotFoundException(
+                entity="Map", key="map.not_found", params={"id": map_id}
+            )
 
         return updated_map
 
     async def get_map(self, map_id: int) -> Optional[Map]:
         map_obj = await self.repository.get(map_id)
         if not map_obj:
-            raise EntityNotFoundException(entity="Map", params={"id": map_id})
+            raise EntityNotFoundException(
+                entity="Map", key="map.not_found", params={"id": map_id}
+            )
         return map_obj
 
     async def delete_map(self, map_id: int, current_user: UserRead) -> bool:
@@ -109,7 +117,9 @@ class MapService:
 
         deleted = await self.repository.delete(map_id)
         if not deleted:
-            raise EntityNotFoundException(entity="Map", params={"id": map_id})
+            raise EntityNotFoundException(
+                entity="Map", key="map.not_found", params={"id": map_id}
+            )
         return True
 
     async def get_all_maps(self) -> List[Map]:

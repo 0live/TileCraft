@@ -20,6 +20,7 @@
   },
   "map": {
     "name_exists": "Une carte avec le nom '{name}' existe déjà.",
+    "not_found": "Carte non trouvée.",
     "create_permission_denied": "Vous n'avez pas la permission de créer des cartes.",
     "delete_permission_denied": "Vous n'avez pas la permission de supprimer des cartes.",
     "update_permission_denied": "Vous n'avez pas la permission de modifier des cartes."

@@ -16,8 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.auth.schemas import Token
-from app.modules.teams.models import Team
-from app.modules.teams.repository import TeamRepository as TeamRepoDependency
+from app.modules.teams.service import TeamService
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserRead, UserUpdate
@@ -29,11 +28,11 @@ class UserService:
     def __init__(
         self,
         repository: UserRepository,
-        team_repository: TeamRepoDependency,
+        team_service: TeamService,
         settings: Settings,
     ):
         self.repository = repository
-        self.team_repository = team_repository
+        self.team_service = team_service
         self.settings = settings
 
     async def create_user(self, user: UserCreate) -> UserRead:
@@ -59,6 +58,7 @@ class UserService:
         user_data["roles"] = [UserRole.USER]
 
         new_user = await self.repository.create(user_data)
+        await self.repository.session.commit()
         return UserRead.model_validate(new_user)
 
     async def get_all_users(self, current_user: UserRead) -> list[User]:
@@ -100,6 +100,7 @@ class UserService:
                 params={"detail": "user.delete_permission_denied"}
             )
         deleted = await self.repository.delete(user_id)
+        await self.repository.session.commit()
         if not deleted:
             raise EntityNotFoundException(
                 entity="User", key="user.not_found", params={"id": user_id}
@@ -140,20 +141,14 @@ class UserService:
 
             teams_to_link = []
             for team_id in user_update.teams:
-                team = await self.team_repository.get(team_id)
-                if not team:
-                    raise EntityNotFoundException(
-                        entity="Team", key="team.not_found", params={"id": team_id}
-                    )
+                # TeamService handles permissions and throws EntityNotFoundException if missing
+                team = await self.team_service.get_team_by_id(team_id, current_user)
                 teams_to_link.append(team)
 
             update_data["teams"] = teams_to_link
 
         updated_user = await self.repository.update(user_id, update_data)
-        if not updated_user:
-            raise EntityNotFoundException(
-                entity="User", key="user.not_found", params={"id": user_id}
-            )
+        await self.repository.session.commit()
         return UserRead.model_validate(updated_user)
 
 
@@ -166,8 +161,10 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 def get_user_service(session: SessionDep, settings: SettingsDep) -> UserService:
     repo = UserRepository(session, User)
-    team_repo = TeamRepoDependency(session, Team)
-    return UserService(repo, team_repo, settings)
+    from app.modules.teams.service import get_team_service
+
+    team_service = get_team_service(session, settings)
+    return UserService(repo, team_service, settings)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]

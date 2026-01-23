@@ -32,11 +32,10 @@ class BaseRepository(Generic[ModelType]):
         """Create a new entity and return it with relations loaded."""
         db_obj = self.model(**attributes)
         self.session.add(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         if self.get_load_options():
             return await self.get(db_obj.id)
 
-        await self.session.refresh(db_obj)
         return db_obj
 
     async def get(
@@ -69,13 +68,10 @@ class BaseRepository(Generic[ModelType]):
             setattr(db_obj, key, value)
 
         self.session.add(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         if self.get_load_options():
-            # If we have load options, we need to fetch the object again to ensure
-            # all relationships are properly loaded
             return await self.get(db_obj.id)
 
-        await self.session.refresh(db_obj)
         return db_obj
 
     async def delete(self, id: int) -> bool:
@@ -85,7 +81,7 @@ class BaseRepository(Generic[ModelType]):
             return False
 
         await self.session.delete(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         return True
 
     async def get_by_name(
@@ -94,8 +90,6 @@ class BaseRepository(Generic[ModelType]):
         """Get an entity by name with eager-loaded relations."""
         # Note: This assumes the model has a 'name' attribute.
         if not hasattr(self.model, "name"):
-            # Or log a warning/return None if strictness is desired
-            # For now, we assume models using this have 'name'
             return None
 
         query = select(self.model).where(getattr(self.model, "name") == name)

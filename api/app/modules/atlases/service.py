@@ -117,11 +117,8 @@ class AtlasService:
         atlas_dict = atlas_update.model_dump(exclude_unset=True, exclude={"teams"})
         atlas_dict = Atlas.add_audit_info(atlas_dict, current_user.id)
 
-        try:
-            updated_atlas = await self.repository.update(atlas_id, atlas_dict)
-        except ValueError as e:
-            raise DomainException(key="atlas.invalid_update", params={"detail": str(e)})
-
+        updated_atlas = await self.repository.update(atlas_id, atlas_dict)
+        await self.repository.session.commit()
         return updated_atlas
 
     async def delete_atlas(self, atlas_id: int, current_user: UserRead) -> bool:
@@ -149,6 +146,7 @@ class AtlasService:
             raise EntityNotFoundException(
                 entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
             )
+        await self.repository.session.commit()
         return True
 
     async def manage_atlas_team_link(
@@ -173,6 +171,7 @@ class AtlasService:
 
         try:
             result = await self.repository.upsert_team_link(link.model_dump())
+            await self.repository.session.commit()
             return AtlasTeamLinkRead(**result.model_dump())
         except ValueError as e:
             raise EntityNotFoundException(
@@ -202,6 +201,7 @@ class AtlasService:
         deleted = await self.repository.delete_team_link(atlas_id, team_id)
         if not deleted:
             raise DomainException(key="atlas.team_link_not_found")
+        await self.repository.session.commit()
         return True
 
     async def _check_team_manage_permission(

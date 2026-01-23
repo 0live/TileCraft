@@ -76,14 +76,12 @@ class AtlasRepository(BaseRepository[Atlas]):
             for key, value in link_data.items():
                 setattr(existing_link, key, value)
             self.session.add(existing_link)
-            await self.session.commit()
-            await self.session.refresh(existing_link)
+            await self.session.flush()
             return existing_link
         else:
             new_link = AtlasTeamLink(**link_data)
             self.session.add(new_link)
-            await self.session.commit()
-            await self.session.refresh(new_link)
+            await self.session.flush()
             return new_link
 
     async def delete_team_link(self, atlas_id: int, team_id: int) -> bool:
@@ -99,5 +97,5 @@ class AtlasRepository(BaseRepository[Atlas]):
             return False
 
         await self.session.delete(link)
-        await self.session.commit()
+        await self.session.flush()
         return True

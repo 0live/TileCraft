@@ -39,7 +39,9 @@ class TeamService:
 
         team_data = Team.add_audit_info(team.model_dump(), current_user.id)
 
-        return await self.repository.create(team_data)
+        team = await self.repository.create(team_data)
+        await self.repository.session.commit()
+        return team
 
     async def get_all_teams(self, current_user: UserRead) -> List[Team]:
         can_view_all = any(
@@ -104,7 +106,9 @@ class TeamService:
 
         update_data = team_update.model_dump(exclude_unset=True)
         update_data = Team.add_audit_info(update_data, current_user.id)
-        return await self.repository.update(id, update_data)
+        team = await self.repository.update(id, update_data)
+        await self.repository.session.commit()
+        return team
 
     async def delete_team(self, id: int, current_user: UserRead) -> bool:
         team = await self.repository.get(id)
@@ -128,6 +132,7 @@ class TeamService:
             raise EntityNotFoundException(
                 entity="Team", key="team.not_found", params={"id": id}
             )
+        await self.repository.session.commit()
         return True
 
 

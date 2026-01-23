@@ -20,7 +20,7 @@ atlasesRouter = APIRouter(prefix="/atlases", tags=["Atlases"])
 async def get_all_atlases(
     service: AtlasServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    return await service.get_all_atlases()
+    return await service.get_all_atlases(current_user)
 
 
 @atlasesRouter.get("/{atlas_id}", response_model=AtlasRead)
@@ -29,7 +29,7 @@ async def get_atlas(
     service: AtlasServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return await service.get_atlas(atlas_id)
+    return await service.get_atlas(atlas_id, current_user)
 
 
 @atlasesRouter.post("", response_model=AtlasRead)

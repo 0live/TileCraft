@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import ForeignKey
 from sqlmodel import TEXT, Column, Field, Relationship, SQLModel
 
+from app.core.mixins.access_policy_mixin import AccessPolicyMixin
 from app.core.mixins.audit_mixin import AuditMixin
 from app.modules.maps.models import Map
 
@@ -22,7 +23,7 @@ class AtlasTeamLink(SQLModel, table=True):
     can_edit_maps: bool = False
 
 
-class Atlas(AuditMixin, SQLModel, table=True):
+class Atlas(AuditMixin, AccessPolicyMixin, SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
     description: str = Field(sa_column=Column(TEXT))

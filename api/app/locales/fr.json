@@ -29,6 +29,7 @@
     "not_found": "Équipe non trouvée.",
     "name_exists": "Une équipe avec le nom '{name}' existe déjà.",
     "create_permission_denied": "Vous n'avez pas la permission de créer des équipes.",
+    "view_permission_denied": "Vous n'avez pas la permission de voir cette équipe.",
     "update_permission_denied": "Vous n'avez pas la permission de modifier des équipes.",
     "delete_permission_denied": "Vous n'avez pas la permission de supprimer des équipes."
   },

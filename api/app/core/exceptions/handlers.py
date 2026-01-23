@@ -54,7 +54,7 @@ async def domain_exception_handler(request: Request, exc: DomainException):
 
 
 async def api_exception_handler(request: Request, exc: APIException):
-    # Fallback for generic TileCraft exceptions
+    # Fallback for generic exceptions
     msg = MessageService.get_message(exc.key, **exc.params)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

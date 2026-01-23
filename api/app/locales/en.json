@@ -28,6 +28,7 @@
   "team": {
     "not_found": "Team not found.",
     "name_exists": "Team with name '{name}' already exists.",
+    "view_permission_denied": "You don't have permission to view this team.",
     "create_permission_denied": "You don't have permission to create teams.",
     "update_permission_denied": "You don't have permission to update teams.",
     "delete_permission_denied": "You don't have permission to delete teams."

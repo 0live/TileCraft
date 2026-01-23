@@ -14,7 +14,7 @@ teamsRouter = APIRouter(prefix="/teams", tags=["Teams"])
 async def get_all_teams(
     service: TeamServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    return await service.get_all_teams()
+    return await service.get_all_teams(current_user)
 
 
 @teamsRouter.get("/{team_id}", response_model=TeamRead)
@@ -23,7 +23,7 @@ async def get_team(
     service: TeamServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return await service.get_team_by_id(team_id)
+    return await service.get_team_by_id(team_id, current_user)
 
 
 @teamsRouter.patch("/{team_id}", response_model=TeamRead)

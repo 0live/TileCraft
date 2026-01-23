@@ -14,7 +14,7 @@ mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 async def get_all_maps(
     service: MapServiceDep, current_user: UserRead = Depends(get_current_user)
 ):
-    return await service.get_all_maps()
+    return await service.get_all_maps(current_user)
 
 
 @mapsRouter.get("/{map_id}", response_model=MapRead)
@@ -23,7 +23,7 @@ async def get_map(
     service: MapServiceDep,
     current_user: UserRead = Depends(get_current_user),
 ):
-    return await service.get_map(map_id)
+    return await service.get_map(map_id, current_user)
 
 
 @mapsRouter.post("", response_model=MapRead)

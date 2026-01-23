@@ -3,6 +3,8 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field
 
+from app.core.enums.access_policy import AccessPolicy
+
 
 class TeamInAtlas(BaseModel):
     id: int
@@ -31,6 +33,7 @@ class AtlasRead(AtlasBase):
 class AtlasUpdate(BaseModel):
     name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
+    access_policy: Optional[AccessPolicy] = Field(default=None)
 
     teams: Optional[List[int]] = Field(default=None)
 

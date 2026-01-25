@@ -19,9 +19,9 @@ class MapRepository(BaseRepository[Map]):
         admin_bypass: bool = False,
     ) -> List[Map]:
         query = select(Map).distinct()
-        query_options = self.get_load_options() if options is None else options
-        for option in query_options:
-            query = query.options(option)
+        if options:
+            for option in options:
+                query = query.options(option)
 
         if admin_bypass:
             pass

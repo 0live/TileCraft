@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from app.modules.users.schemas import UserRead
+from app.modules.users.schemas import UserDetail
 from httpx import AsyncClient
 
 
@@ -11,8 +11,9 @@ async def test_register_user(client: AsyncClient, user_data):
     response = await client.post("/auth/register", json=user_data)
     assert response.status_code == 200
     data = response.json()
-    user_out = UserRead(**data)
+    user_out = UserDetail(**data)
     assert user_out.email == user_data["email"]
+    assert user_out.teams == []
     assert "password" not in data
     assert "hashed_password" not in data
 

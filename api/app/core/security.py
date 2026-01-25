@@ -10,7 +10,7 @@ from jwt.exceptions import InvalidTokenError
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationException
 from app.modules.auth.schemas import Token
-from app.modules.users.schemas import UserRead
+from app.modules.users.schemas import UserDetail
 
 
 def hash_password(password: str) -> str:
@@ -56,7 +56,7 @@ def decode_token(token: str, settings: Settings) -> dict:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-def get_token(user: UserRead, settings: Settings) -> Token:
+def get_token(user: UserDetail, settings: Settings) -> Token:
     """Generate a Token response for a user."""
     token = create_access_token(data={**user.model_dump()}, settings=settings)
     return Token(access_token=token, token_type="bearer")
@@ -72,7 +72,7 @@ from app.modules.users.service import UserServiceDep
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     service: UserServiceDep,
-) -> UserRead:
+) -> UserDetail:
     """Get current authenticated user from token."""
     try:
         payload = decode_token(token, settings=service.settings)
@@ -82,7 +82,7 @@ async def get_current_user(
     except InvalidTokenError:
         raise AuthenticationException(params={"detail": "auth.invalid_credentials"})
 
-    user = await service.get_by_username(username)
+    user = await service.get_by_username(username, with_relations=True)
     if user is None:
         raise AuthenticationException(params={"detail": "auth.user_not_found"})
-    return UserRead.model_validate(user)
+    return UserDetail.model_validate(user)

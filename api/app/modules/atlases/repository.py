@@ -1,6 +1,5 @@
 from typing import Any, List, Optional
 
-from sqlalchemy.orm import selectinload
 from sqlmodel import or_, select
 
 from app.core.enums.access_policy import AccessPolicy
@@ -10,10 +9,7 @@ from app.modules.teams.models import Team
 
 
 class AtlasRepository(BaseRepository[Atlas]):
-    """Repository for Atlas entities with eager loading of teams and maps relationships."""
-
-    def get_load_options(self) -> List[Any]:
-        return [selectinload(Atlas.teams), selectinload(Atlas.maps)]
+    """Repository for Atlas entities."""
 
     async def get_all(
         self,
@@ -26,9 +22,9 @@ class AtlasRepository(BaseRepository[Atlas]):
         Get all atlases with explicit filters.
         """
         query = select(Atlas).distinct()
-        query_options = self.get_load_options() if options is None else options
-        for option in query_options:
-            query = query.options(option)
+        if options:
+            for option in options:
+                query = query.options(option)
 
         if admin_bypass:
             pass

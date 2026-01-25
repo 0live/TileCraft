@@ -21,13 +21,16 @@ class MapInAtlas(BaseModel):
 class AtlasBase(BaseModel):
     name: str
     description: str
-    teams: List[TeamInAtlas] = []
-    maps: List[MapInAtlas] = []
     model_config = ConfigDict(from_attributes=True)
 
 
-class AtlasRead(AtlasBase):
+class AtlasSummary(AtlasBase):
     id: int
+
+
+class AtlasDetail(AtlasSummary):
+    teams: List[TeamInAtlas] = []
+    maps: List[MapInAtlas] = []
 
 
 class AtlasUpdate(BaseModel):

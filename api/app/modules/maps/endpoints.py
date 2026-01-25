@@ -3,44 +3,44 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.core.security import get_current_user
-from app.modules.maps.schemas import MapCreate, MapRead, MapUpdate
+from app.modules.maps.schemas import MapCreate, MapDetail, MapSummary, MapUpdate
 from app.modules.maps.service import MapServiceDep
-from app.modules.users.schemas import UserRead
+from app.modules.users.schemas import UserDetail
 
 mapsRouter = APIRouter(prefix="/maps", tags=["Maps"])
 
 
-@mapsRouter.get("", response_model=List[MapRead])
+@mapsRouter.get("", response_model=List[MapSummary])
 async def get_all_maps(
-    service: MapServiceDep, current_user: UserRead = Depends(get_current_user)
+    service: MapServiceDep, current_user: UserDetail = Depends(get_current_user)
 ):
     return await service.get_all_maps(current_user)
 
 
-@mapsRouter.get("/{map_id}", response_model=MapRead)
+@mapsRouter.get("/{map_id}", response_model=MapDetail)
 async def get_map(
     map_id: int,
     service: MapServiceDep,
-    current_user: UserRead = Depends(get_current_user),
+    current_user: UserDetail = Depends(get_current_user),
 ):
     return await service.get_map(map_id, current_user)
 
 
-@mapsRouter.post("", response_model=MapRead)
+@mapsRouter.post("", response_model=MapDetail)
 async def create(
     map: MapCreate,
     service: MapServiceDep,
-    current_user: UserRead = Depends(get_current_user),
+    current_user: UserDetail = Depends(get_current_user),
 ):
     return await service.create_map(map, current_user)
 
 
-@mapsRouter.patch("/{map_id}", response_model=MapRead)
+@mapsRouter.patch("/{map_id}", response_model=MapDetail)
 async def patch_map(
     map_id: int,
     map: MapUpdate,
     service: MapServiceDep,
-    current_user: UserRead = Depends(get_current_user),
+    current_user: UserDetail = Depends(get_current_user),
 ):
     return await service.update_map(map_id, map, current_user)
 
@@ -49,6 +49,6 @@ async def patch_map(
 async def delete_map(
     map_id: int,
     service: MapServiceDep,
-    current_user: UserRead = Depends(get_current_user),
+    current_user: UserDetail = Depends(get_current_user),
 ):
     return await service.delete_map(map_id, current_user)

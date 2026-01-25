@@ -12,12 +12,15 @@ class UserInTeam(BaseModel):
 
 class TeamBase(BaseModel):
     name: str
-    users: List[UserInTeam] = []
     model_config = ConfigDict(from_attributes=True)
 
 
-class TeamRead(TeamBase):
+class TeamSummary(TeamBase):
     id: int
+
+
+class TeamDetail(TeamSummary):
+    users: List[UserInTeam] = []
 
 
 class TeamUpdate(BaseModel):

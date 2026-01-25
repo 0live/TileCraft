@@ -40,13 +40,11 @@ class MessageService:
         settings = get_settings()
         target_locale = locale or settings.locale
 
-        # Fallback to 'en' if locale not found
         if target_locale not in cls._messages:
             target_locale = "en"
 
         messages = cls._messages.get(target_locale, {})
 
-        # Navigate the nested dictionary using the key
         keys = key.split(".")
         value = messages
         for k in keys:
@@ -57,7 +55,6 @@ class MessageService:
                 break
 
         if value is None:
-            # Fallback to generic message or key itself if not found
             return f"Message not found for key: {key}"
 
         if isinstance(value, str):

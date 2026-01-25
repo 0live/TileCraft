@@ -1,6 +1,7 @@
 from typing import Annotated, List
 
 from fastapi import Depends
+from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
@@ -12,9 +13,13 @@ from app.core.exceptions import (
 )
 from app.modules.teams.models import Team
 from app.modules.teams.repository import TeamRepository
-from app.modules.teams.schemas import TeamBase, TeamRead
+from app.modules.teams.schemas import (
+    TeamBase,
+    TeamDetail,
+    TeamSummary,
+)
 from app.modules.users.models import UserRole
-from app.modules.users.schemas import UserRead
+from app.modules.users.schemas import UserDetail
 
 
 class TeamService:
@@ -22,7 +27,7 @@ class TeamService:
         self.repository = repository
         self.settings = settings
 
-    async def create_team(self, team: TeamBase, current_user: UserRead) -> TeamRead:
+    async def create_team(self, team: TeamBase, current_user: UserDetail) -> TeamDetail:
         if all(
             role not in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
@@ -31,7 +36,7 @@ class TeamService:
                 params={"detail": "team.create_permission_denied"}
             )
 
-        existing_team = await self.repository.get_by_name(team.name, options=[])
+        existing_team = await self.repository.get_by_name(team.name)
         if existing_team:
             raise DuplicateEntityException(
                 key="team.name_exists", params={"name": team.name}
@@ -39,11 +44,14 @@ class TeamService:
 
         team_data = Team.add_audit_info(team.model_dump(), current_user.id)
 
-        team = await self.repository.create(team_data)
+        team_obj = await self.repository.create(team_data)
         await self.repository.session.commit()
-        return team
 
-    async def get_all_teams(self, current_user: UserRead) -> List[Team]:
+        return await self.repository.get(
+            team_obj.id, options=[selectinload(Team.users)]
+        )
+
+    async def get_all_teams(self, current_user: UserDetail) -> List[TeamSummary]:
         can_view_all = any(
             role in current_user.roles
             for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
@@ -52,8 +60,8 @@ class TeamService:
             user=current_user, filter_by_access=not can_view_all
         )
 
-    async def get_team_by_id(self, id: int, current_user: UserRead) -> Team:
-        team = await self.repository.get(id)
+    async def get_team_by_id(self, id: int, current_user: UserDetail) -> TeamDetail:
+        team = await self.repository.get(id, options=[selectinload(Team.users)])
         if not team:
             raise EntityNotFoundException(
                 entity="Team", key="team.not_found", params={"id": id}
@@ -77,8 +85,8 @@ class TeamService:
         return team
 
     async def update_team(
-        self, id: int, team_update: TeamBase, current_user: UserRead
-    ) -> Team:
+        self, id: int, team_update: TeamBase, current_user: UserDetail
+    ) -> TeamDetail:
         team = await self.repository.get(id)
         if not team:
             raise EntityNotFoundException(
@@ -96,9 +104,7 @@ class TeamService:
             )
 
         if team_update.name != team.name:
-            existing_team = await self.repository.get_by_name(
-                team_update.name, options=[]
-            )
+            existing_team = await self.repository.get_by_name(team_update.name)
             if existing_team:
                 raise DuplicateEntityException(
                     key="team.name_exists", params={"name": team_update.name}
@@ -106,11 +112,14 @@ class TeamService:
 
         update_data = team_update.model_dump(exclude_unset=True)
         update_data = Team.add_audit_info(update_data, current_user.id)
-        team = await self.repository.update(id, update_data)
-        await self.repository.session.commit()
-        return team
 
-    async def delete_team(self, id: int, current_user: UserRead) -> bool:
+        await self.repository.update(id, update_data)
+        await self.repository.session.commit()
+
+        # Return detail
+        return await self.repository.get(id, options=[selectinload(Team.users)])
+
+    async def delete_team(self, id: int, current_user: UserDetail) -> bool:
         team = await self.repository.get(id)
         if not team:
             raise EntityNotFoundException(

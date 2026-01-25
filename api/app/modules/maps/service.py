@@ -15,9 +15,9 @@ from app.modules.atlases.models import AtlasTeamLink
 from app.modules.atlases.service import AtlasService, AtlasServiceDep
 from app.modules.maps.models import Map
 from app.modules.maps.repository import MapRepository
-from app.modules.maps.schemas import MapCreate, MapRead, MapUpdate
+from app.modules.maps.schemas import MapCreate, MapDetail, MapSummary, MapUpdate
 from app.modules.users.models import UserRole
-from app.modules.users.schemas import UserRead
+from app.modules.users.schemas import UserDetail
 
 
 class MapService:
@@ -31,7 +31,7 @@ class MapService:
         self.atlas_service = atlas_service
         self.settings = settings
 
-    async def create_map(self, map: MapCreate, current_user: UserRead) -> MapRead:
+    async def create_map(self, map: MapCreate, current_user: UserDetail) -> MapDetail:
         atlas_obj = await self.atlas_service.get_atlas(map.atlas_id, current_user)
 
         can_create = (
@@ -61,9 +61,9 @@ class MapService:
         map_data = Map.add_audit_info(map.model_dump(), current_user.id)
         new_map = await self.repository.create(map_data)
         await self.repository.session.commit()
-        return await self.repository.get_by_name(new_map.name)
+        return new_map
 
-    async def get_map(self, map_id: int, current_user: UserRead) -> Map:
+    async def get_map(self, map_id: int, current_user: UserDetail) -> MapDetail:
         map_obj = await self.repository.get(map_id)
         if not map_obj:
             raise EntityNotFoundException(
@@ -89,7 +89,7 @@ class MapService:
 
         return map_obj
 
-    async def get_all_maps(self, current_user: UserRead) -> List[Map]:
+    async def get_all_maps(self, current_user: UserDetail) -> List[MapSummary]:
         admin_bypass = UserRole.ADMIN in current_user.roles
 
         return await self.repository.get_all(
@@ -102,8 +102,8 @@ class MapService:
         self,
         map_id: int,
         map_update: MapUpdate,
-        current_user: UserRead,
-    ) -> MapRead:
+        current_user: UserDetail,
+    ) -> MapDetail:
         map_db = await self.repository.get(map_id)
         if not map_db:
             raise EntityNotFoundException(
@@ -141,7 +141,7 @@ class MapService:
         await self.repository.session.commit()
         return updated_map
 
-    async def delete_map(self, map_id: int, current_user: UserRead) -> bool:
+    async def delete_map(self, map_id: int, current_user: UserDetail) -> bool:
         map_obj = await self.repository.get(map_id)
         if not map_obj:
             raise EntityNotFoundException(
@@ -170,7 +170,7 @@ class MapService:
         return True
 
     async def _check_team_map_permission(
-        self, atlas_id: int, user: UserRead, permission_type: str = "read"
+        self, atlas_id: int, user: UserDetail, permission_type: str = "read"
     ) -> bool:
         user_team_ids = [t.id for t in user.teams]
         if not user_team_ids:

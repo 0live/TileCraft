@@ -42,6 +42,7 @@
     "update_permission_denied": "You don't have permission to update this user.",
     "delete_permission_denied": "You don't have permission to delete users.",
     "role_permission_denied": "You don't have permission to change roles.",
-    "team_permission_denied": "You don't have permission to change teams."
+    "team_permission_denied": "You don't have permission to change teams.",
+    "deleted_success": "User deleted successfully."
   }
 }

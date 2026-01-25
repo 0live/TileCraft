@@ -5,12 +5,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.modules.auth.schemas import Token
 from app.modules.auth.services.auth_service import AuthServiceDep
-from app.modules.users.schemas import UserCreate, UserRead
+from app.modules.users.schemas import UserCreate, UserDetail
 
 authRouter = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@authRouter.post("/register", response_model=UserRead)
+@authRouter.post("/register", response_model=UserDetail)
 async def register(user: UserCreate, service: AuthServiceDep):
     """Register a new user."""
     return await service.register(user)

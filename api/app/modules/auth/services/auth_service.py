@@ -7,7 +7,7 @@ from app.core.config import Settings, get_settings
 from app.core.security import get_token
 from app.modules.auth.schemas import Token
 from app.modules.auth.services.google_auth import GoogleAuthService
-from app.modules.users.schemas import UserCreate, UserRead, UserRole
+from app.modules.users.schemas import UserCreate, UserDetail, UserRole
 from app.modules.users.service import UserService, UserServiceDep
 
 
@@ -18,7 +18,7 @@ class AuthService:
         self.user_service = user_service
         self.settings = settings
 
-    async def register(self, user: UserCreate) -> UserRead:
+    async def register(self, user: UserCreate) -> UserDetail:
         """Register a new user."""
         return await self.user_service.create_user(user)
 
@@ -39,10 +39,9 @@ class AuthService:
 
         if existing_user:
             return get_token(
-                UserRead.model_validate(existing_user), settings=self.settings
+                UserDetail.model_validate(existing_user), settings=self.settings
             )
 
-        # Create new user from Google info
         user_data = UserCreate(
             email=email,
             username=user_info.get("name") or email.split("@")[0],
@@ -50,10 +49,8 @@ class AuthService:
             roles=[UserRole.USER],
         )
 
-        # Use user service create
         new_user = await self.user_service.create_user(user_data)
 
-        # Return token
         return get_token(new_user, settings=self.settings)
 
 

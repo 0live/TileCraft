@@ -77,8 +77,15 @@ async def test_google_callback(client: AsyncClient):
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
-        # You might want to verify the user was actually created
-        # But for integration test of the endpoint, getting a valid token is good proof.
+        # Verify user persistence
+        token = data["access_token"]
+        me_resp = await client.get(
+            "/users/me", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert me_resp.status_code == 200
+        me = me_resp.json()
+        assert me["email"] == "googleuser@example.com"
+        assert me["username"] == "Google User"
 
 
 @pytest.mark.asyncio

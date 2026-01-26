@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import get_settings
@@ -20,6 +21,7 @@ from app.core.exceptions.handlers import (
     duplicate_entity_exception_handler,
     entity_not_found_handler,
     permission_denied_handler,
+    request_validation_exception_handler,
 )
 from app.core.messages import MessageService
 from app.modules.atlases.endpoints import atlasesRouter
@@ -50,6 +52,7 @@ app.add_exception_handler(PermissionDeniedException, permission_denied_handler)
 app.add_exception_handler(AuthenticationException, authentication_exception_handler)
 app.add_exception_handler(DomainException, domain_exception_handler)
 app.add_exception_handler(APIException, api_exception_handler)
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 
 app.add_middleware(
     SessionMiddleware,

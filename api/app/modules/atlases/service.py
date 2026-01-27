@@ -21,6 +21,7 @@ from app.modules.atlases.schemas import (
     AtlasSummary,
     AtlasTeamLinkCreate,
     AtlasTeamLinkRead,
+    AtlasTeamLinkUpdate,
     AtlasUpdate,
 )
 from app.modules.users.models import UserRole
@@ -143,7 +144,7 @@ class AtlasService:
         await self.repository.session.commit()
         return True
 
-    async def manage_atlas_team_link(
+    async def add_team_to_atlas(
         self,
         link: AtlasTeamLinkCreate,
         current_user: UserDetail,
@@ -159,16 +160,56 @@ class AtlasService:
                 params={"detail": "atlas.link_permission_denied"}
             )
 
+        if await self.repository.get_team_link(link.atlas_id, link.team_id):
+            raise DuplicateEntityException(
+                key="atlas.team_already_linked",
+                params={
+                    "team_id": link.team_id,
+                    "atlas_id": link.atlas_id,
+                },
+            )
+
         try:
-            result = await self.repository.upsert_team_link(link.model_dump())
+            result = await self.repository.create_team_link(link.model_dump())
             await self.repository.session.commit()
             return AtlasTeamLinkRead(**result.model_dump())
         except ValueError as e:
             raise EntityNotFoundException(
-                entity="TeamLink",
-                key="atlas.team_link_not_found",
+                entity="Team",
+                key="team.not_found",
                 params={"detail": str(e)},
             )
+
+    async def update_atlas_team_permissions(
+        self,
+        atlas_id: int,
+        team_id: int,
+        link_update: AtlasTeamLinkUpdate,
+        current_user: UserDetail,
+    ) -> AtlasTeamLinkRead:
+        atlas = await self.repository.get(atlas_id)
+        if not atlas:
+            raise EntityNotFoundException(
+                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
+            )
+
+        if not await self._has_manage_permission(atlas, current_user):
+            raise PermissionDeniedException(
+                params={"detail": "atlas.link_permission_denied"}
+            )
+
+        link = await self.repository.get_team_link(atlas_id, team_id)
+        if not link:
+            raise EntityNotFoundException(
+                entity="TeamLink",
+                key="atlas.team_not_linked",
+                params={"team_id": team_id, "atlas_id": atlas_id},
+            )
+
+        update_data = link_update.model_dump(exclude_unset=True)
+        result = await self.repository.update_team_link(link, update_data)
+        await self.repository.session.commit()
+        return AtlasTeamLinkRead(**result.model_dump())
 
     async def delete_atlas_team_link(
         self, atlas_id: int, team_id: int, current_user: UserDetail

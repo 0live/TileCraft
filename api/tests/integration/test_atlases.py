@@ -156,9 +156,16 @@ async def test_manage_atlas_team_link_lifecycle(
     assert data["can_create_maps"] is True
     assert data["can_manage_atlas"] is False
 
-    # Update Link
-    link_payload["can_manage_atlas"] = True
+    # Try to create same link again - should fail
     resp = await client.post("/atlases/team", json=link_payload, headers=headers)
+    assert resp.status_code == 409
+    assert resp.json()["key"] == "atlas.team_already_linked"
+
+    # Update Link
+    update_payload = {"can_manage_atlas": True}
+    resp = await client.patch(
+        f"/atlases/{atlas_id}/team/{team_id}", json=update_payload, headers=headers
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["can_manage_atlas"] is True
@@ -167,6 +174,13 @@ async def test_manage_atlas_team_link_lifecycle(
     resp = await client.delete(f"/atlases/{atlas_id}/team/{team_id}", headers=headers)
     assert resp.status_code == 200
     assert resp.json() is True
+
+    # Try to update deleted link - should fail
+    resp = await client.patch(
+        f"/atlases/{atlas_id}/team/{team_id}", json=update_payload, headers=headers
+    )
+    assert resp.status_code == 404
+    assert resp.json()["key"] == "atlas.team_not_linked"
 
 
 @pytest.mark.asyncio

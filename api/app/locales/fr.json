@@ -16,7 +16,11 @@
     "create_permission_denied": "Vous n'avez pas la permission de créer des atlas.",
     "delete_permission_denied": "Vous n'avez pas la permission de supprimer des atlas.",
     "link_permission_denied": "Vous n'avez pas la permission de gérer les liens d'équipe pour cet atlas.",
-    "team_link_not_found": "Lien d'équipe non trouvé."
+    "team_already_linked": "L'équipe {team_id} est déjà liée à l'atlas {atlas_id}.",
+    "team_not_linked": "L'équipe {team_id} n'est pas liée à l'atlas {atlas_id}."
+  },
+  "team_link": {
+    "not_found": "Lien d'équipe non trouvé."
   },
   "map": {
     "name_exists": "Une carte avec le nom '{name}' existe déjà.",

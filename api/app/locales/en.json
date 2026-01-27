@@ -16,7 +16,11 @@
     "create_permission_denied": "You don't have permission to create atlases.",
     "delete_permission_denied": "You don't have permission to delete atlases.",
     "link_permission_denied": "You don't have permission to manage team links for this atlas.",
-    "team_link_not_found": "Team link not found."
+    "team_already_linked": "Team {team_id} already linked to atlas {atlas_id}.",
+    "team_not_linked": "Team {team_id} not linked to atlas {atlas_id}."
+  },
+  "team_link": {
+    "not_found": "Team link not found."
   },
   "map": {
     "name_exists": "Map with name '{name}' already exists.",

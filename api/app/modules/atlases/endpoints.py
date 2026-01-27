@@ -9,6 +9,7 @@ from app.modules.atlases.schemas import (
     AtlasSummary,
     AtlasTeamLinkCreate,
     AtlasTeamLinkRead,
+    AtlasTeamLinkUpdate,
     AtlasUpdate,
 )
 from app.modules.atlases.service import AtlasServiceDep
@@ -58,7 +59,20 @@ async def create_link(
     service: AtlasServiceDep,
     current_user: UserDetail = Depends(get_current_user),
 ):
-    return await service.manage_atlas_team_link(link, current_user)
+    return await service.add_team_to_atlas(link, current_user)
+
+
+@atlasesRouter.patch("/{atlas_id}/team/{team_id}", response_model=AtlasTeamLinkRead)
+async def update_link(
+    atlas_id: int,
+    team_id: int,
+    link: AtlasTeamLinkUpdate,
+    service: AtlasServiceDep,
+    current_user: UserDetail = Depends(get_current_user),
+):
+    return await service.update_atlas_team_permissions(
+        atlas_id, team_id, link, current_user
+    )
 
 
 @atlasesRouter.delete("/{atlas_id}")

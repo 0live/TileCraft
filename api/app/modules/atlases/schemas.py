@@ -55,3 +55,9 @@ class AtlasTeamLinkCreate(BaseModel):
     can_manage_atlas: Optional[bool] = Field(default=False)
     can_create_maps: Optional[bool] = Field(default=False)
     can_edit_maps: Optional[bool] = Field(default=False)
+
+
+class AtlasTeamLinkUpdate(BaseModel):
+    can_manage_atlas: Optional[bool] = Field(default=None)
+    can_create_maps: Optional[bool] = Field(default=None)
+    can_edit_maps: Optional[bool] = Field(default=None)

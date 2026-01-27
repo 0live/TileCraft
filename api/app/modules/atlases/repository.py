@@ -49,9 +49,22 @@ class AtlasRepository(BaseRepository[Atlas]):
         result = await self.session.exec(query)
         return list(result.all())
 
-    async def upsert_team_link(self, link_data: dict) -> AtlasTeamLink:
+    async def get_team_link(
+        self, atlas_id: int, team_id: int
+    ) -> Optional[AtlasTeamLink]:
         """
-        Create or update a link between an atlas and a team.
+        Get a link between an atlas and a team.
+        """
+        statement = select(AtlasTeamLink).where(
+            AtlasTeamLink.atlas_id == atlas_id,
+            AtlasTeamLink.team_id == team_id,
+        )
+        result = await self.session.exec(statement)
+        return result.first()
+
+    async def create_team_link(self, link_data: dict) -> AtlasTeamLink:
+        """
+        Create a link between an atlas and a team.
         """
         # Ensure team exists
         team_id = link_data.get("team_id")
@@ -59,26 +72,22 @@ class AtlasRepository(BaseRepository[Atlas]):
         if not team_result.first():
             raise ValueError("Team not found")
 
-        atlas_id = link_data.get("atlas_id")
-        existing_link_result = await self.session.exec(
-            select(AtlasTeamLink).where(
-                AtlasTeamLink.atlas_id == atlas_id,
-                AtlasTeamLink.team_id == team_id,
-            )
-        )
-        existing_link = existing_link_result.first()
+        new_link = AtlasTeamLink(**link_data)
+        self.session.add(new_link)
+        await self.session.flush()
+        return new_link
 
-        if existing_link:
-            for key, value in link_data.items():
-                setattr(existing_link, key, value)
-            self.session.add(existing_link)
-            await self.session.flush()
-            return existing_link
-        else:
-            new_link = AtlasTeamLink(**link_data)
-            self.session.add(new_link)
-            await self.session.flush()
-            return new_link
+    async def update_team_link(
+        self, link: AtlasTeamLink, update_data: dict
+    ) -> AtlasTeamLink:
+        """
+        Update a link between an atlas and a team.
+        """
+        for key, value in update_data.items():
+            setattr(link, key, value)
+        self.session.add(link)
+        await self.session.flush()
+        return link
 
     async def delete_team_link(self, atlas_id: int, team_id: int) -> bool:
         """Delete a link between an atlas and a team."""

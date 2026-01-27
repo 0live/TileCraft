@@ -12,8 +12,6 @@ class UserRepository(BaseRepository[User]):
     async def get_by_username(
         self, username: str, options: Optional[List[Any]] = None
     ) -> Optional[User]:
-        from sqlmodel import select
-
         query = select(self.model).where(self.model.username == username)
         if options:
             for option in options:

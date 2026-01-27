@@ -44,13 +44,7 @@ class BaseRepository(Generic[ModelType]):
     ) -> Optional[ModelType]:
         """
         Update an entity by ID and return it.
-
-        Args:
-            id: The ID of the entity to update.
-            attributes: Dictionary of attributes to update.
-            options: List of loader options (e.g. selectinload) to ensure relationships are loaded.
         """
-        # Pass options to get() to ensure we load what we need (e.g. for relationship updates)
         db_obj = await self.get(id, options=options)
         if not db_obj:
             return None

@@ -6,6 +6,7 @@ from app.core.security import get_current_user
 from app.modules.teams.schemas import (
     TeamBase,
     TeamDetail,
+    TeamMemberCreate,
     TeamSummary,
     TeamUpdate,
 )
@@ -57,3 +58,23 @@ async def delete_team(
     current_user: UserDetail = Depends(get_current_user),
 ):
     return await service.delete_team(team_id, current_user)
+
+
+@teamsRouter.post("/{team_id}/members", response_model=TeamDetail)
+async def add_team_member(
+    team_id: int,
+    data: TeamMemberCreate,
+    service: TeamServiceDep,
+    current_user: UserDetail = Depends(get_current_user),
+):
+    return await service.add_member(team_id, data.user_id, current_user)
+
+
+@teamsRouter.delete("/{team_id}/members/{user_id}", response_model=TeamDetail)
+async def remove_team_member(
+    team_id: int,
+    user_id: int,
+    service: TeamServiceDep,
+    current_user: UserDetail = Depends(get_current_user),
+):
+    return await service.remove_member(team_id, user_id, current_user)

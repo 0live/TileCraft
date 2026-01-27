@@ -30,4 +30,3 @@ class UserUpdate(BaseModel):
     username: Optional[str] = Field(default=None)
     roles: Optional[List[UserRole]] = Field(default=None)
     password: Optional[str] = Field(default=None)
-    teams: Optional[List[int]] = Field(default=None)

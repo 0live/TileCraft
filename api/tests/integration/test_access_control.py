@@ -35,9 +35,9 @@ async def test_team_visibility_for_member(client: AsyncClient, auth_token_factor
     team_id = team_data["id"]
 
     # 4. Admin adds 'user' to the team
-    await client.patch(
-        f"/users/{user_id}",
-        json={"teams": [team_id]},
+    await client.post(
+        f"/teams/{team_id}/members",
+        json={"user_id": user_id},
         headers=admin_headers,
     )
 
@@ -76,9 +76,9 @@ async def test_team_modification_permission(client: AsyncClient, auth_token_fact
     team_id = create_res.json()["id"]
 
     # Admin adds member
-    await client.patch(
-        f"/users/{user_id}",
-        json={"teams": [team_id]},
+    await client.post(
+        f"/teams/{team_id}/members",
+        json={"user_id": user_id},
         headers=admin_headers,
     )
 
@@ -177,9 +177,9 @@ async def test_atlas_team_access(client: AsyncClient, auth_token_factory):
     assert res.status_code == 404
 
     # Add User to Team
-    await client.patch(
-        f"/users/{user_id}",
-        json={"teams": [team_id]},
+    await client.post(
+        f"/teams/{team_id}/members",
+        json={"user_id": user_id},
         headers=admin_headers,
     )
 
@@ -216,8 +216,8 @@ async def test_atlas_management_permission(client: AsyncClient, auth_token_facto
     ).json()["id"]
 
     # Add User to Team
-    await client.patch(
-        f"/users/{user_id}", json={"teams": [team_id]}, headers=admin_headers
+    await client.post(
+        f"/teams/{team_id}/members", json={"user_id": user_id}, headers=admin_headers
     )
 
     # Link with NO manage permission
@@ -272,8 +272,8 @@ async def test_map_creation_permission(client: AsyncClient, auth_token_factory):
     team_id = (
         await client.post("/teams", json={"name": "Mapper Team"}, headers=admin_headers)
     ).json()["id"]
-    await client.patch(
-        f"/users/{user_id}", json={"teams": [team_id]}, headers=admin_headers
+    await client.post(
+        f"/teams/{team_id}/members", json={"user_id": user_id}, headers=admin_headers
     )
 
     # Link with NO create permission

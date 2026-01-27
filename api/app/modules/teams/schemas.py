@@ -23,6 +23,10 @@ class TeamDetail(TeamSummary):
     users: List[UserInTeam] = []
 
 
+class TeamMemberCreate(BaseModel):
+    user_id: int
+
+
 class TeamUpdate(BaseModel):
     name: str | None = None
     users: List[UserInTeam] | None = None

@@ -19,7 +19,6 @@ from app.core.security import (
 )
 from app.modules.auth.schemas import Token
 from app.modules.teams.models import Team
-from app.modules.teams.service import TeamService
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
 from app.modules.users.schemas import UserCreate, UserDetail, UserSummary, UserUpdate
@@ -31,11 +30,9 @@ class UserService:
     def __init__(
         self,
         repository: UserRepository,
-        team_service: TeamService,
         settings: Settings,
     ):
         self.repository = repository
-        self.team_service = team_service
         self.settings = settings
 
     async def create_user(self, user: UserCreate) -> UserDetail:
@@ -145,22 +142,6 @@ class UserService:
                 )
             update_data["roles"] = user_update.roles
 
-        if user_update.teams is not None:
-            if all(
-                role not in current_user.roles
-                for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
-            ):
-                raise PermissionDeniedException(
-                    params={"detail": "user.team_permission_denied"}
-                )
-
-            teams_to_link = []
-            for team_id in user_update.teams:
-                team = await self.team_service.get_team_by_id(team_id, current_user)
-                teams_to_link.append(team)
-
-            update_data["teams"] = teams_to_link
-
         await self.repository.update(
             user_id, update_data, options=[selectinload(User.teams)]
         )
@@ -180,10 +161,7 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 def get_user_service(session: SessionDep, settings: SettingsDep) -> UserService:
     repo = UserRepository(session, User)
-    from app.modules.teams.service import get_team_service
-
-    team_service = get_team_service(session, settings)
-    return UserService(repo, team_service, settings)
+    return UserService(repo, settings)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]

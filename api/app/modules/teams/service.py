@@ -144,6 +144,68 @@ class TeamService:
         await self.repository.session.commit()
         return True
 
+    async def add_member(
+        self, team_id: int, user_id: int, current_user: UserDetail
+    ) -> TeamDetail:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
+        ):
+            raise PermissionDeniedException(
+                params={"detail": "team.update_permission_denied"}
+            )
+
+        team = await self.repository.get(team_id, options=[selectinload(Team.users)])
+        if not team:
+            raise EntityNotFoundException(
+                entity="Team", key="team.not_found", params={"id": team_id}
+            )
+
+        # Use session.get to avoid importing UserRepository and creating circular dep
+        from app.modules.users.models import User
+
+        user = await self.repository.session.get(User, user_id)
+        if not user:
+            raise EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": user_id}
+            )
+
+        if user not in team.users:
+            team.users.append(user)
+            await self.repository.session.commit()
+            await self.repository.session.refresh(team)
+
+        return team
+
+    async def remove_member(
+        self, team_id: int, user_id: int, current_user: UserDetail
+    ) -> TeamDetail:
+        if all(
+            role not in current_user.roles
+            for role in [UserRole.ADMIN, UserRole.MANAGE_TEAMS]
+        ):
+            raise PermissionDeniedException(
+                params={"detail": "team.update_permission_denied"}
+            )
+
+        team = await self.repository.get(team_id, options=[selectinload(Team.users)])
+        if not team:
+            raise EntityNotFoundException(
+                entity="Team", key="team.not_found", params={"id": team_id}
+            )
+
+        user_to_remove = next((u for u in team.users if u.id == user_id), None)
+        if not user_to_remove:
+            raise EntityNotFoundException(
+                entity="User", key="team.user_not_found", params={"id": user_id}
+            )
+
+        team.users.remove(user_to_remove)
+        await self.repository.session.commit()
+        await self.repository.session.refresh(team)
+
+        return team
+
 
 # Dependencies
 SettingsDep = Annotated[Settings, Depends(get_settings)]

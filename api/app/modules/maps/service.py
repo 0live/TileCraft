@@ -11,8 +11,8 @@ from app.core.exceptions import (
     PermissionDeniedException,
 )
 from app.core.permissions import has_any_role
-from app.modules.atlases.models import AtlasTeamLink
-from app.modules.atlases.service import AtlasService, AtlasServiceDep
+from app.modules.atlases.models import Atlas, AtlasTeamLink
+from app.modules.atlases.repository import AtlasRepository
 from app.modules.maps.models import Map
 from app.modules.maps.repository import MapRepository
 from app.modules.maps.schemas import MapCreate, MapDetail, MapSummary, MapUpdate
@@ -24,15 +24,18 @@ class MapService:
     def __init__(
         self,
         repository: MapRepository,
-        atlas_service: AtlasService,
+        atlas_repository: AtlasRepository,
         settings: Settings,
     ):
         self.repository = repository
-        self.atlas_service = atlas_service
+        self.atlas_repository = atlas_repository
         self.settings = settings
 
     async def create_map(self, map: MapCreate, current_user: UserDetail) -> MapDetail:
-        atlas_obj = await self.atlas_service.get_atlas(map.atlas_id, current_user)
+        # Verify Atlas exists (using repository instead of service)
+        atlas_obj = await self.atlas_repository.get_or_raise(
+            map.atlas_id, "Atlas", "atlas.not_found"
+        )
 
         can_create = (
             has_any_role(
@@ -177,10 +180,10 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 def get_map_service(
     session: SessionDep,
     settings: SettingsDep,
-    atlas_service: AtlasServiceDep,
 ) -> MapService:
     repo = MapRepository(session, Map)
-    return MapService(repo, atlas_service, settings)
+    atlas_repo = AtlasRepository(session, Atlas)
+    return MapService(repo, atlas_repo, settings)
 
 
 MapServiceDep = Annotated[MapService, Depends(get_map_service)]

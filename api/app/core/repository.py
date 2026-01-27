@@ -161,3 +161,45 @@ class BaseRepository(Generic[ModelType]):
 
         if existing:
             raise DuplicateEntityException(key=key, params={"name": name})
+
+    async def get_related_entity(
+        self,
+        model_class: Type[SQLModel],
+        entity_id: int,
+        entity_name: str,
+        key: str,
+    ) -> SQLModel:
+        """
+        Retrieve an entity of a different type by ID or raise EntityNotFoundException.
+
+        This method allows services to verify the existence of related entities
+        from other modules without directly accessing the session, respecting
+        the Repository Pattern.
+
+        Args:
+            model_class: The SQLModel class to retrieve
+            entity_id: ID of the entity to retrieve
+            entity_name: Human-readable entity name for error messages
+            key: Localization key for the error message
+
+        Returns:
+            The retrieved entity
+
+        Raises:
+            EntityNotFoundException: If the entity does not exist
+
+        Example:
+            # In TeamService, verify a User exists before adding to team
+            from app.modules.users.models import User
+            user = await self.repository.get_related_entity(
+                User, user_id, "User", "user.not_found"
+            )
+        """
+        from app.core.exceptions import EntityNotFoundException
+
+        entity = await self.session.get(model_class, entity_id)
+        if not entity:
+            raise EntityNotFoundException(
+                entity=entity_name, key=key, params={"id": entity_id}
+            )
+        return entity

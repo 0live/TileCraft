@@ -23,7 +23,7 @@ from app.modules.auth.schemas import Token
 from app.modules.teams.models import Team
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserCreate, UserDetail, UserSummary, UserUpdate
+from app.modules.users.schemas import UserDetail, UserSummary, UserUpdate
 
 
 class UserService:
@@ -36,33 +36,6 @@ class UserService:
     ):
         self.repository = repository
         self.settings = settings
-
-    async def create_user(self, user: UserCreate) -> UserDetail:
-        """Create a new user (used for testing, prefer auth/register for production)."""
-        # Check email uniqueness
-        existing_email_user = await self.repository.get_by_email(user.email)
-        if existing_email_user:
-            raise DuplicateEntityException(
-                key="user.email_exists", params={"email": user.email}
-            )
-
-        existing_username = await self.repository.get_by_username(user.username)
-        if existing_username:
-            raise DuplicateEntityException(
-                key="user.username_exists", params={"username": user.username}
-            )
-
-        hashed_pw = hash_password(user.password)
-        user_data = user.model_dump(exclude={"password", "roles", "teams"})
-        user_data["hashed_password"] = hashed_pw
-        user_data["roles"] = [UserRole.USER]
-
-        new_user = await self.repository.create(user_data)
-        await self.repository.session.commit()
-
-        return await self.repository.get(
-            new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
-        )
 
     async def get_all_users(self, current_user: UserDetail) -> list[UserSummary]:
         if not has_any_role(current_user, [UserRole.ADMIN]):

@@ -119,14 +119,12 @@ class TeamService:
             team_id, "Team", "team.not_found", options=[selectinload(Team.users)]
         )
 
-        # Use session.get to avoid importing UserRepository and creating circular dep
+        # Use repository helper to get related entity from another module
         from app.modules.users.models import User
 
-        user = await self.repository.session.get(User, user_id)
-        if not user:
-            raise EntityNotFoundException(
-                entity="User", key="user.not_found", params={"id": user_id}
-            )
+        user = await self.repository.get_related_entity(
+            User, user_id, "User", "user.not_found"
+        )
 
         if user not in team.users:
             team.users.append(user)

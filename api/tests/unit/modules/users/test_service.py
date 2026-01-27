@@ -3,12 +3,11 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from app.core.config import Settings
 from app.core.exceptions import (
-    DuplicateEntityException,
     EntityNotFoundException,
     PermissionDeniedException,
 )
 from app.modules.users.models import UserRole
-from app.modules.users.schemas import UserCreate, UserDetail, UserUpdate
+from app.modules.users.schemas import UserDetail, UserUpdate
 from app.modules.users.service import UserService
 
 
@@ -28,66 +27,6 @@ class TestUserService:
         return UserService(repository=mock_repo, settings=mock_settings)
 
     @pytest.mark.asyncio
-    async def test_create_user_success(self, service, mock_repo):
-        """Test successful user creation."""
-        # Setup
-        user_create = UserCreate(
-            username="newuser", email="new@example.com", password="password123"
-        )
-        mock_repo.get_by_email = AsyncMock(return_value=None)
-        mock_repo.get_by_username = AsyncMock(return_value=None)
-
-        created_user = Mock(id=1)
-        mock_repo.create = AsyncMock(return_value=created_user)
-
-        expected_detail = UserDetail(
-            id=1,
-            username="newuser",
-            email="new@example.com",
-            roles=[UserRole.USER],
-            teams=[],
-        )
-        mock_repo.get = AsyncMock(return_value=expected_detail)
-
-        # Execute
-        result = await service.create_user(user_create)
-
-        # Assert
-        assert result.username == "newuser"
-        assert result.email == "new@example.com"
-        mock_repo.create.assert_called_once()
-        mock_repo.session.commit.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_create_user_duplicate_email(self, service, mock_repo):
-        """Test user creation with existing email."""
-        user_create = UserCreate(
-            username="newuser", email="existing@example.com", password="password123"
-        )
-        mock_repo.get_by_email = AsyncMock(return_value=Mock())
-
-        with pytest.raises(DuplicateEntityException) as exc:
-            await service.create_user(user_create)
-
-        assert exc.value.key == "user.email_exists"
-        mock_repo.create.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_create_user_duplicate_username(self, service, mock_repo):
-        """Test user creation with existing username."""
-        user_create = UserCreate(
-            username="existinguser", email="new@example.com", password="password123"
-        )
-        mock_repo.get_by_email = AsyncMock(return_value=None)
-        mock_repo.get_by_username = AsyncMock(return_value=Mock())
-
-        with pytest.raises(DuplicateEntityException) as exc:
-            await service.create_user(user_create)
-
-        assert exc.value.key == "user.username_exists"
-        mock_repo.create.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_get_user_by_id_success_admin(self, service, mock_repo):
         """Test get user by id as admin."""
         admin_user = UserDetail(
@@ -105,7 +44,7 @@ class TestUserService:
             teams=[],
         )
 
-        mock_repo.get = AsyncMock(return_value=target_user)
+        mock_repo.get_or_raise = AsyncMock(return_value=target_user)
 
         result = await service.get_user_by_id(1, admin_user)
         assert result.id == 1
@@ -118,7 +57,7 @@ class TestUserService:
             id=1, username="me", email="me@test.com", roles=[UserRole.USER], teams=[]
         )
 
-        mock_repo.get = AsyncMock(return_value=user)
+        mock_repo.get_or_raise = AsyncMock(return_value=user)
 
         result = await service.get_user_by_id(1, user)
         assert result.id == 1
@@ -146,7 +85,13 @@ class TestUserService:
             roles=[UserRole.ADMIN],
             teams=[],
         )
-        mock_repo.get = AsyncMock(return_value=None)
+        from app.core.exceptions import EntityNotFoundException
+
+        mock_repo.get_or_raise = AsyncMock(
+            side_effect=EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": 1}
+            )
+        )
 
         with pytest.raises(EntityNotFoundException) as exc:
             await service.get_user_by_id(1, admin_user)

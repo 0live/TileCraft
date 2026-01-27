@@ -234,9 +234,9 @@ async def test_atlas_management_permission(client: AsyncClient, auth_token_facto
     assert res.status_code == 403
 
     # Update Link to GRANT manage permission
-    await client.post(
-        "/atlases/team",
-        json={"atlas_id": atlas_id, "team_id": team_id, "can_manage_atlas": True},
+    await client.patch(
+        f"/atlases/{atlas_id}/team/{team_id}",
+        json={"can_manage_atlas": True},
         headers=admin_headers,
     )
 
@@ -294,9 +294,9 @@ async def test_map_creation_permission(client: AsyncClient, auth_token_factory):
     assert res.status_code == 403
 
     # Grant permission
-    await client.post(
-        "/atlases/team",
-        json={"atlas_id": atlas_id, "team_id": team_id, "can_create_maps": True},
+    await client.patch(
+        f"/atlases/{atlas_id}/team/{team_id}",
+        json={"can_create_maps": True},
         headers=admin_headers,
     )
 

@@ -1,6 +1,6 @@
-# TileCraft Project
+# Canopy Project
 
-![TileCraft stack](img/Tilecraft_stack.png)
+![Canopy stack](img/Canopy_stack.png)
 
 Todo:
 

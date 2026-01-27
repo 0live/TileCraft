@@ -1,7 +1,7 @@
 pytest
 ============================================================= test session starts ==============================================================
 platform linux -- Python 3.10.12, pytest-8.3.4, pluggy-1.5.0
-rootdir: /home/olivier/dev/TileCraft/api
+rootdir: /home/olivier/dev/Canopy/api
 configfile: pytest.ini
 testpaths: tests
 plugins: anyio-4.8.0

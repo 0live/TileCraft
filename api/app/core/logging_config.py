@@ -7,7 +7,7 @@ from app.core.config import get_settings
 def setup_logging():
     log_level = logging.DEBUG if get_settings().env == "dev" else logging.INFO
 
-    logger = logging.getLogger("tilecraft")
+    logger = logging.getLogger("canopy")
     logger.setLevel(log_level)
 
     handler = logging.StreamHandler(sys.stdout)

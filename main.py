@@ -1,5 +1,5 @@
 def main():
-    print("Hello from tilecraft!")
+    print("Hello from Canopy!")
 
 
 if __name__ == "__main__":

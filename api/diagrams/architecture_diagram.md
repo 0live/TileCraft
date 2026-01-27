@@ -1,6 +1,6 @@
 # API Architecture
 
-This diagram represents the high-level architecture of the TileCraft API, following a modular design with Clean Architecture principles.
+This diagram represents the high-level architecture of the Canopy API, following a modular design with Clean Architecture principles.
 
 ```mermaid
 graph TD
@@ -15,7 +15,7 @@ graph TD
     %% Nodes
     Client((User / Frontend)):::client
 
-    subgraph API_Application [TileCraft API]
+    subgraph API_Application [Canopy API]
         entry[FastAPI Application]:::core
         middleware[Middleware & Exception Handlers]:::core
 

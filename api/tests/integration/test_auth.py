@@ -106,3 +106,34 @@ async def test_login(client: AsyncClient, auth_token_factory, existing_users, se
     assert payload["email"] == existing_users[0]["email"]
     assert isinstance(payload["id"], int)
     assert "roles" in payload
+
+
+@pytest.mark.asyncio
+async def test_login_failure(client: AsyncClient, existing_users):
+    """Test login with incorrect credentials."""
+    # Try logging in with wrong password
+    response = await client.post(
+        "/auth/login",
+        data={
+            "username": existing_users[0]["username"],
+            "password": "wrongpassword",
+        },
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username(client: AsyncClient, user_data):
+    """Test user registration with existing username but different email."""
+    # Register once
+    await client.post("/auth/register", json=user_data)
+
+    # Change email but keep username
+    new_user_data = user_data.copy()
+    new_user_data["email"] = "otheremail@example.com"
+
+    # Register again with same username
+    response = await client.post("/auth/register", json=new_user_data)
+    assert response.status_code == 409
+    data = response.json()
+    assert data["key"] == "user.username_exists"

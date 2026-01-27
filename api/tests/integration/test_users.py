@@ -113,3 +113,47 @@ async def test_delete_user(client: AsyncClient, auth_token_factory, existing_use
         f"/users/{target_id}", headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert get_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_user_self(client: AsyncClient, auth_token_factory, user_data):
+    """Verifies that a user can update their own username and email."""
+    # Register via /auth/register
+    await client.post("/auth/register", json=user_data)
+    token = await auth_token_factory(
+        username=user_data["username"], password=user_data["password"]
+    )
+
+    # Get own ID
+    me_res = await client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+    me = me_res.json()
+    user_id = me["id"]
+
+    # Update username and email
+    updated_data = {
+        "username": "newusername",
+        "email": "newemail@example.com",
+    }
+    response = await client.patch(
+        f"/users/{user_id}",
+        json=updated_data,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "newusername"
+    assert data["email"] == "newemail@example.com"
+
+    # Verify updates are persisted
+    # Note: Token might be invalidated if it contains the old username.
+    # So we re-login with the new username/password to get a fresh token.
+    # The password hasn't changed.
+    new_token = await auth_token_factory(
+        username="newusername", password=user_data["password"]
+    )
+
+    me_res_after = await client.get(
+        "/users/me", headers={"Authorization": f"Bearer {new_token}"}
+    )
+    assert me_res_after.status_code == 200
+    assert me_res_after.json()["username"] == "newusername"

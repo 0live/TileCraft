@@ -13,6 +13,7 @@ from app.core.exceptions import (
     EntityNotFoundException,
     PermissionDeniedException,
 )
+from app.core.permissions import has_any_role
 from app.modules.atlases.models import Atlas, AtlasTeamLink
 from app.modules.atlases.repository import AtlasRepository
 from app.modules.atlases.schemas import (
@@ -36,19 +37,14 @@ class AtlasService:
     async def create_atlas(
         self, atlas: AtlasBase, current_user: UserDetail
     ) -> AtlasDetail:
-        if all(
-            role not in current_user.roles
-            for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
+        if not has_any_role(
+            current_user, [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
         ):
             raise PermissionDeniedException(
                 params={"detail": "atlas.create_permission_denied"}
             )
 
-        existing_atlas = await self.repository.get_by_name(atlas.name)
-        if existing_atlas:
-            raise DuplicateEntityException(
-                key="atlas.name_exists", params={"name": atlas.name}
-            )
+        await self.repository.ensure_unique_name(atlas.name, "atlas.name_exists")
 
         atlas_data = Atlas.add_audit_info(atlas.model_dump(), current_user.id)
         new_atlas = Atlas(**atlas_data)
@@ -62,16 +58,15 @@ class AtlasService:
         )
 
     async def get_atlas(self, atlas_id: int, current_user: UserDetail) -> AtlasDetail:
-        atlas = await self.repository.get(
-            atlas_id, options=[selectinload(Atlas.teams), selectinload(Atlas.maps)]
+        atlas = await self.repository.get_or_raise(
+            atlas_id,
+            "Atlas",
+            "atlas.not_found",
+            options=[selectinload(Atlas.teams), selectinload(Atlas.maps)],
         )
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
-            )
 
         can_view = False
-        if UserRole.ADMIN in current_user.roles:
+        if has_any_role(current_user, [UserRole.ADMIN]):
             can_view = True
         elif atlas.created_by_id == current_user.id:
             can_view = True
@@ -94,7 +89,7 @@ class AtlasService:
         return await self.repository.get_all(
             filter_owner_id=current_user.id,
             filter_team_ids=[t.id for t in current_user.teams],
-            admin_bypass=UserRole.ADMIN in current_user.roles,
+            admin_bypass=has_any_role(current_user, [UserRole.ADMIN]),
         )
 
     async def update_atlas(
@@ -103,11 +98,7 @@ class AtlasService:
         atlas_update: AtlasUpdate,
         current_user: UserDetail,
     ) -> AtlasDetail:
-        atlas = await self.repository.get(atlas_id)
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
-            )
+        atlas = await self.repository.get_or_raise(atlas_id, "Atlas", "atlas.not_found")
 
         if not await self._has_manage_permission(atlas, current_user):
             raise PermissionDeniedException(
@@ -125,11 +116,7 @@ class AtlasService:
         )
 
     async def delete_atlas(self, atlas_id: int, current_user: UserDetail) -> bool:
-        atlas = await self.repository.get(atlas_id)
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
-            )
+        atlas = await self.repository.get_or_raise(atlas_id, "Atlas", "atlas.not_found")
 
         if not await self._has_manage_permission(atlas, current_user):
             raise PermissionDeniedException(
@@ -149,11 +136,9 @@ class AtlasService:
         link: AtlasTeamLinkCreate,
         current_user: UserDetail,
     ) -> AtlasTeamLinkRead:
-        atlas = await self.repository.get(link.atlas_id)
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": link.atlas_id}
-            )
+        atlas = await self.repository.get_or_raise(
+            link.atlas_id, "Atlas", "atlas.not_found"
+        )
 
         if not await self._has_manage_permission(atlas, current_user):
             raise PermissionDeniedException(
@@ -187,11 +172,7 @@ class AtlasService:
         link_update: AtlasTeamLinkUpdate,
         current_user: UserDetail,
     ) -> AtlasTeamLinkRead:
-        atlas = await self.repository.get(atlas_id)
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
-            )
+        atlas = await self.repository.get_or_raise(atlas_id, "Atlas", "atlas.not_found")
 
         if not await self._has_manage_permission(atlas, current_user):
             raise PermissionDeniedException(
@@ -214,11 +195,7 @@ class AtlasService:
     async def delete_atlas_team_link(
         self, atlas_id: int, team_id: int, current_user: UserDetail
     ) -> bool:
-        atlas = await self.repository.get(atlas_id)
-        if not atlas:
-            raise EntityNotFoundException(
-                entity="Atlas", key="atlas.not_found", params={"id": atlas_id}
-            )
+        atlas = await self.repository.get_or_raise(atlas_id, "Atlas", "atlas.not_found")
 
         if not await self._has_manage_permission(atlas, current_user):
             raise PermissionDeniedException(
@@ -233,7 +210,7 @@ class AtlasService:
 
     async def _has_manage_permission(self, atlas: Atlas, user: UserDetail) -> bool:
         """Check if user is Admin, Creator, or has Team Manager rights."""
-        if UserRole.ADMIN in user.roles:
+        if has_any_role(user, [UserRole.ADMIN]):
             return True
         if atlas.created_by_id == user.id:
             return True

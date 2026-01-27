@@ -111,3 +111,53 @@ class BaseRepository(Generic[ModelType]):
         query = select(self.model).where(getattr(self.model, "name") == name)
         result = await self.session.exec(query)
         return result.first()
+
+    async def get_or_raise(
+        self,
+        id: int,
+        entity_name: str,
+        key: str,
+        options: Optional[List[Any]] = None,
+    ) -> ModelType:
+        """Retrieve an entity by ID or raise EntityNotFoundException."""
+        from app.core.exceptions import EntityNotFoundException
+
+        entity = await self.get(id, options=options)
+        if not entity:
+            raise EntityNotFoundException(
+                entity=entity_name, key=key, params={"id": id}
+            )
+        return entity
+
+    async def ensure_unique_name(
+        self,
+        name: str,
+        key: str,
+        exclude_id: Optional[int] = None,
+        **additional_filters,
+    ) -> None:
+        """
+        Ensure a name is unique, raising DuplicateEntityException if not.
+        Supports scoped uniqueness via additional_filters (e.g., atlas_id=5).
+        """
+        from app.core.exceptions import DuplicateEntityException
+
+        if not hasattr(self.model, "name"):
+            return
+
+        query = select(self.model).where(getattr(self.model, "name") == name)
+
+        # Add additional filters (e.g., atlas_id for maps)
+        for field_name, field_value in additional_filters.items():
+            if hasattr(self.model, field_name):
+                query = query.where(getattr(self.model, field_name) == field_value)
+
+        # Exclude current entity during updates
+        if exclude_id is not None:
+            query = query.where(self.model.id != exclude_id)
+
+        result = await self.session.exec(query)
+        existing = result.first()
+
+        if existing:
+            raise DuplicateEntityException(key=key, params={"name": name})

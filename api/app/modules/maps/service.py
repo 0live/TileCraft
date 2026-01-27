@@ -7,10 +7,10 @@ from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
 from app.core.enums.access_policy import AccessPolicy
 from app.core.exceptions import (
-    DuplicateEntityException,
     EntityNotFoundException,
     PermissionDeniedException,
 )
+from app.core.permissions import has_any_role
 from app.modules.atlases.models import AtlasTeamLink
 from app.modules.atlases.service import AtlasService, AtlasServiceDep
 from app.modules.maps.models import Map
@@ -35,9 +35,8 @@ class MapService:
         atlas_obj = await self.atlas_service.get_atlas(map.atlas_id, current_user)
 
         can_create = (
-            any(
-                role in current_user.roles
-                for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
+            has_any_role(
+                current_user, [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
             )
             or atlas_obj.created_by_id == current_user.id
             or await self._check_team_map_permission(
@@ -50,13 +49,9 @@ class MapService:
                 params={"detail": "map.create_permission_denied"}
             )
 
-        existing_map = await self.repository.get_by_atlas_and_name(
-            map.atlas_id, map.name
+        await self.repository.ensure_unique_name(
+            map.name, "map.name_exists", atlas_id=map.atlas_id
         )
-        if existing_map:
-            raise DuplicateEntityException(
-                key="map.name_exists", params={"name": map.name}
-            )
 
         map_data = Map.add_audit_info(map.model_dump(), current_user.id)
         new_map = await self.repository.create(map_data)
@@ -64,16 +59,11 @@ class MapService:
         return new_map
 
     async def get_map(self, map_id: int, current_user: UserDetail) -> MapDetail:
-        map_obj = await self.repository.get(map_id)
-        if not map_obj:
-            raise EntityNotFoundException(
-                entity="Map", key="map.not_found", params={"id": map_id}
-            )
+        map_obj = await self.repository.get_or_raise(map_id, "Map", "map.not_found")
 
         can_view = (
-            any(
-                role in current_user.roles
-                for role in [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
+            has_any_role(
+                current_user, [UserRole.ADMIN, UserRole.MANAGE_ATLASES_AND_MAPS]
             )
             or map_obj.access_policy == AccessPolicy.PUBLIC
             or map_obj.created_by_id == current_user.id
@@ -90,7 +80,7 @@ class MapService:
         return map_obj
 
     async def get_all_maps(self, current_user: UserDetail) -> List[MapSummary]:
-        admin_bypass = UserRole.ADMIN in current_user.roles
+        admin_bypass = has_any_role(current_user, [UserRole.ADMIN])
 
         return await self.repository.get_all(
             filter_owner_id=current_user.id,
@@ -104,14 +94,10 @@ class MapService:
         map_update: MapUpdate,
         current_user: UserDetail,
     ) -> MapDetail:
-        map_db = await self.repository.get(map_id)
-        if not map_db:
-            raise EntityNotFoundException(
-                entity="Map", key="map.not_found", params={"id": map_id}
-            )
+        map_db = await self.repository.get_or_raise(map_id, "Map", "map.not_found")
 
         can_edit = (
-            UserRole.ADMIN in current_user.roles
+            has_any_role(current_user, [UserRole.ADMIN])
             or map_db.created_by_id == current_user.id
             or await self._check_team_map_permission(
                 map_db.atlas_id, current_user, "edit"
@@ -128,13 +114,9 @@ class MapService:
         new_name = update_data.get("name", map_db.name)
         new_atlas_id = update_data.get("atlas_id", map_db.atlas_id)
         if new_name != map_db.name or new_atlas_id != map_db.atlas_id:
-            existing_map = await self.repository.get_by_atlas_and_name(
-                new_atlas_id, new_name
+            await self.repository.ensure_unique_name(
+                new_name, "map.name_exists", exclude_id=map_id, atlas_id=new_atlas_id
             )
-            if existing_map:
-                raise DuplicateEntityException(
-                    key="map.name_exists", params={"name": new_name}
-                )
 
         update_data = Map.add_audit_info(update_data, current_user.id)
         updated_map = await self.repository.update(map_id, update_data)
@@ -142,14 +124,10 @@ class MapService:
         return updated_map
 
     async def delete_map(self, map_id: int, current_user: UserDetail) -> bool:
-        map_obj = await self.repository.get(map_id)
-        if not map_obj:
-            raise EntityNotFoundException(
-                entity="Map", key="map.not_found", params={"id": map_id}
-            )
+        map_obj = await self.repository.get_or_raise(map_id, "Map", "map.not_found")
 
         can_delete = (
-            UserRole.ADMIN in current_user.roles
+            has_any_role(current_user, [UserRole.ADMIN])
             or map_obj.created_by_id == current_user.id
             or await self._check_team_map_permission(
                 map_obj.atlas_id, current_user, "edit"

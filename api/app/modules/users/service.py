@@ -13,6 +13,7 @@ from app.core.exceptions import (
     PermissionDeniedException,
 )
 from app.core.messages import MessageService
+from app.core.permissions import has_any_role
 from app.core.security import (
     get_token,
     hash_password,
@@ -64,7 +65,7 @@ class UserService:
         )
 
     async def get_all_users(self, current_user: UserDetail) -> list[UserSummary]:
-        if UserRole.ADMIN not in current_user.roles:
+        if not has_any_role(current_user, [UserRole.ADMIN]):
             raise PermissionDeniedException(
                 params={"detail": "user.list_permission_denied"}
             )
@@ -73,19 +74,20 @@ class UserService:
     async def get_user_by_id(
         self, user_id: int, current_user: UserDetail
     ) -> UserDetail:
-        if UserRole.ADMIN not in current_user.roles and current_user.id != user_id:
+        if (
+            not has_any_role(current_user, [UserRole.ADMIN])
+            and current_user.id != user_id
+        ):
             raise PermissionDeniedException(
                 params={"detail": "user.read_permission_denied"}
             )
 
-        user = await self.repository.get(
-            user_id, options=[selectinload(User.teams).selectinload(Team.users)]
+        return await self.repository.get_or_raise(
+            user_id,
+            "User",
+            "user.not_found",
+            options=[selectinload(User.teams).selectinload(Team.users)],
         )
-        if not user:
-            raise EntityNotFoundException(
-                entity="User", key="user.not_found", params={"id": user_id}
-            )
-        return user
 
     async def get_by_username(
         self, username: str, with_relations: bool = False
@@ -108,7 +110,7 @@ class UserService:
         raise AuthenticationException()
 
     async def delete_user(self, user_id: int, current_user: UserDetail) -> bool:
-        if UserRole.ADMIN not in current_user.roles:
+        if not has_any_role(current_user, [UserRole.ADMIN]):
             raise PermissionDeniedException(
                 params={"detail": "user.delete_permission_denied"}
             )
@@ -123,7 +125,9 @@ class UserService:
     async def update_user(
         self, user_id: int, user_update: UserUpdate, current_user: UserDetail
     ) -> UserDetail:
-        if user_id != current_user.id and UserRole.ADMIN not in current_user.roles:
+        if user_id != current_user.id and not has_any_role(
+            current_user, [UserRole.ADMIN]
+        ):
             raise PermissionDeniedException(
                 params={"detail": "user.update_permission_denied"}
             )
@@ -137,7 +141,7 @@ class UserService:
             update_data["hashed_password"] = hashed_password
 
         if user_update.roles is not None:
-            if UserRole.ADMIN not in current_user.roles:
+            if not has_any_role(current_user, [UserRole.ADMIN]):
                 raise PermissionDeniedException(
                     params={"detail": "user.role_permission_denied"}
                 )

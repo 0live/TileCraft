@@ -9,9 +9,6 @@ ModelType = TypeVar("ModelType", bound=SQLModel)
 class BaseRepository(Generic[ModelType]):
     """
     Base repository providing generic CRUD operations with eager loading support.
-
-    Subclasses should override `get_load_options()` to specify relationships
-    that need to be eagerly loaded to avoid MissingGreenlet errors.
     """
 
     def __init__(self, session: AsyncSession, model: Type[ModelType]):
@@ -42,9 +39,19 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.exec(query)
         return list(result.all())
 
-    async def update(self, id: int, attributes: dict) -> Optional[ModelType]:
-        """Update an entity by ID and return it."""
-        db_obj = await self.get(id)
+    async def update(
+        self, id: int, attributes: dict, options: Optional[List[Any]] = None
+    ) -> Optional[ModelType]:
+        """
+        Update an entity by ID and return it.
+
+        Args:
+            id: The ID of the entity to update.
+            attributes: Dictionary of attributes to update.
+            options: List of loader options (e.g. selectinload) to ensure relationships are loaded.
+        """
+        # Pass options to get() to ensure we load what we need (e.g. for relationship updates)
+        db_obj = await self.get(id, options=options)
         if not db_obj:
             return None
 

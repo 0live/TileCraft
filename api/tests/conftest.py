@@ -68,17 +68,27 @@ async def session_fixture(engine):
     """
     async with engine.connect() as connection:
         transaction = await connection.begin()
+
+        # Enable nested transaction (SAVEPOINT)
+        # This allows application code to call session.commit() which will only release the savepoint
+        # The actual data is never permanently committed to the DB because we rollback the outer transaction
+        nested = await connection.begin_nested()
+
         # Bind session to the connection to participate in the transaction
         session = AsyncSession(bind=connection, expire_on_commit=False)
 
         # Run seeds inside the transaction
-        # Run seeds inside the transaction
         seeder = Seeder(session)
-        await seeder.run(commit=False)
+        # We can now allow commit=True in seeds because it will simply release the savepoint
+        # causing the data to be visible within this transaction but not persisted
+        await seeder.run(commit=True)
 
         yield session
 
         await session.close()
+        # Rollback the outer transaction to clean up everything
+        if nested.is_active:
+            await nested.rollback()
         await transaction.rollback()
 
 

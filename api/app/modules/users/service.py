@@ -161,7 +161,9 @@ class UserService:
 
             update_data["teams"] = teams_to_link
 
-        await self.repository.update(user_id, update_data)
+        await self.repository.update(
+            user_id, update_data, options=[selectinload(User.teams)]
+        )
         await self.repository.session.commit()
 
         return await self.repository.get(

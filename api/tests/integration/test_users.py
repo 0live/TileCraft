@@ -157,3 +157,42 @@ async def test_update_user_self(client: AsyncClient, auth_token_factory, user_da
     )
     assert me_res_after.status_code == 200
     assert me_res_after.json()["username"] == "newusername"
+
+
+@pytest.mark.asyncio
+async def test_update_user_duplicate_username(
+    client: AsyncClient, auth_token_factory, user_data
+):
+    """Verifies that updating a user with an existing username returns 409 Conflict."""
+    # 1. Register User 1 (The victim of duplication)
+    user1_data = user_data.copy()
+    user1_data["username"] = "user1"
+    user1_data["email"] = "user1@example.com"
+    await client.post("/auth/register", json=user1_data)
+
+    # 2. Register User 2 (The one who will try to steal the username)
+    user2_data = user_data.copy()
+    user2_data["username"] = "user2"
+    user2_data["email"] = "user2@example.com"
+    await client.post("/auth/register", json=user2_data)
+
+    # 3. Login as User 2
+    token = await auth_token_factory(
+        username=user2_data["username"], password=user2_data["password"]
+    )
+
+    # Get User 2 ID
+    me_res = await client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+    user2_id = me_res.json()["id"]
+
+    # 4. Update User 2's username to User 1's username
+    updated_data = {"username": "user1"}
+    response = await client.patch(
+        f"/users/{user2_id}",
+        json=updated_data,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    # 5. Assert 409 Conflict (Current behavior is 500 Internal Server Error)
+    assert response.status_code == 409
+    assert response.json()["key"] == "user.username_exists"

@@ -1,6 +1,7 @@
 from typing import Annotated, Optional
 
 from fastapi import Depends
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
@@ -142,10 +143,23 @@ class UserService:
                 )
             update_data["roles"] = user_update.roles
 
-        await self.repository.update(
-            user_id, update_data, options=[selectinload(User.teams)]
-        )
-        await self.repository.session.commit()
+        try:
+            await self.repository.update(
+                user_id, update_data, options=[selectinload(User.teams)]
+            )
+            await self.repository.session.commit()
+        except IntegrityError as e:
+            await self.repository.session.rollback()
+            if "ix_user_username" in str(e.orig):
+                raise DuplicateEntityException(
+                    key="user.username_exists",
+                    params={"username": user_update.username},
+                )
+            if "ix_user_email" in str(e.orig):
+                raise DuplicateEntityException(
+                    key="user.email_exists", params={"email": user_update.email}
+                )
+            raise e
 
         return await self.repository.get(
             user_id, options=[selectinload(User.teams).selectinload(Team.users)]

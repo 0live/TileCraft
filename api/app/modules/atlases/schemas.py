@@ -38,8 +38,6 @@ class AtlasUpdate(BaseModel):
     description: Optional[str] = Field(default=None)
     access_policy: Optional[AccessPolicy] = Field(default=None)
 
-    teams: Optional[List[int]] = Field(default=None)
-
 
 class AtlasTeamLinkRead(BaseModel):
     atlas_id: int

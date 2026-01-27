@@ -29,5 +29,4 @@ class TeamMemberCreate(BaseModel):
 
 class TeamUpdate(BaseModel):
     name: str | None = None
-    users: List[UserInTeam] | None = None
     model_config = ConfigDict(from_attributes=True)

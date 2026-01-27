@@ -1,7 +1,12 @@
+import logging
 from typing import Any, Generic, List, Optional, Type, TypeVar
 
+from sqlalchemy.inspection import inspect
+from sqlalchemy.orm import RelationshipProperty
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
@@ -14,6 +19,25 @@ class BaseRepository(Generic[ModelType]):
     def __init__(self, session: AsyncSession, model: Type[ModelType]):
         self.session = session
         self.model = model
+        # Cache for relationship fields to avoid repeated introspection
+        self._relationship_fields_cache: Optional[set[str]] = None
+
+    def _get_relationship_fields(self) -> set[str]:
+        """
+        Introspects the SQLModel to find all Relationship fields.
+        Results are cached to avoid repeated introspection.
+
+        Returns:
+            Set of field names that are SQLModel Relationships
+        """
+        if self._relationship_fields_cache is None:
+            mapper = inspect(self.model)
+            self._relationship_fields_cache = {
+                attr.key
+                for attr in mapper.attrs
+                if isinstance(attr, RelationshipProperty)
+            }
+        return self._relationship_fields_cache
 
     async def create(self, attributes: dict) -> ModelType:
         db_obj = self.model(**attributes)
@@ -44,12 +68,25 @@ class BaseRepository(Generic[ModelType]):
     ) -> Optional[ModelType]:
         """
         Update an entity by ID and return it.
+        Automatically excludes relationship fields to prevent lazy loading issues.
         """
         db_obj = await self.get(id, options=options)
         if not db_obj:
             return None
 
-        for key, value in attributes.items():
+        relationship_fields = self._get_relationship_fields()
+
+        filtered_fields = set(attributes.keys()) & relationship_fields
+        if filtered_fields:
+            logger.debug(
+                f"Filtered relationship fields from {self.model.__name__} update: {filtered_fields}"
+            )
+
+        safe_attributes = {
+            k: v for k, v in attributes.items() if k not in relationship_fields
+        }
+
+        for key, value in safe_attributes.items():
             setattr(db_obj, key, value)
 
         self.session.add(db_obj)

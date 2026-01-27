@@ -114,7 +114,7 @@ class AtlasService:
                 params={"detail": "atlas.edit_permission_denied"}
             )
 
-        atlas_dict = atlas_update.model_dump(exclude_unset=True, exclude={"teams"})
+        atlas_dict = atlas_update.model_dump(exclude_unset=True)
         atlas_dict = Atlas.add_audit_info(atlas_dict, current_user.id)
 
         await self.repository.update(atlas_id, atlas_dict)

@@ -129,7 +129,7 @@ class UserService:
             )
 
         update_data = user_update.model_dump(
-            exclude_unset=True, exclude={"password", "roles", "teams"}
+            exclude_unset=True, exclude={"password", "roles"}
         )
 
         if user_update.password is not None:

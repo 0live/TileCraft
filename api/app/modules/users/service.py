@@ -23,7 +23,7 @@ from app.modules.auth.schemas import Token
 from app.modules.teams.models import Team
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserDetail, UserSummary, UserUpdate
+from app.modules.users.schemas import UserCreate, UserDetail, UserSummary, UserUpdate
 
 
 class UserService:
@@ -72,6 +72,27 @@ class UserService:
 
     async def get_by_email(self, email: str) -> Optional[User]:
         return await self.repository.get_by_email(email)
+
+    async def create_user(self, user: UserCreate) -> UserDetail:
+        """
+        Create a new user with validated credentials.
+
+        Validates email/username uniqueness, hashes password, assigns USER role.
+        Used by AuthService for registration and OAuth user creation.
+        """
+        await self.repository.validate_unique_credentials(user.email, user.username)
+
+        hashed_pw = hash_password(user.password)
+        user_data = user.model_dump(exclude={"password", "roles", "teams"})
+        user_data["hashed_password"] = hashed_pw
+        user_data["roles"] = [UserRole.USER]
+
+        new_user = await self.repository.create(user_data)
+        await self.repository.session.commit()
+
+        return await self.repository.get(
+            new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
+        )
 
     async def authenticate_user(self, username: str, password: str) -> Optional[Token]:
         """Authenticate a user (kept for backwards compatibility)."""

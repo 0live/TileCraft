@@ -79,7 +79,6 @@ graph TD
 
     UserR --> UserS
     UserS --> UserRepo
-    UserS -.->|Uses| TeamS
 
     TeamR --> TeamS
     TeamS --> TeamRepo

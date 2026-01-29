@@ -4,6 +4,7 @@
 
 Todo:
 
-- Implement access to entities logic (owner, team, members, public)
-- Remove domain errors from modules
-- Finish tests
+- Supprimer authenticate_user
+- Add caddy reverse proxy
+- Review token/refresh token/cookie policy
+- File upload

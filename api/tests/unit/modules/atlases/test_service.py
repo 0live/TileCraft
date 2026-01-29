@@ -17,7 +17,7 @@ from app.modules.users.schemas import UserDetail
 class TestAtlasService:
     @pytest.fixture
     def mock_repo(self):
-        repo = Mock()
+        repo = AsyncMock()
         repo.session = AsyncMock()
         return repo
 
@@ -88,7 +88,9 @@ class TestAtlasService:
     async def test_create_atlas_duplicate_name(self, service, mock_repo, admin_user):
         """Test atlas creation with duplicate name."""
         atlas_base = AtlasBase(name="Existing Atlas", description="Desc")
-        mock_repo.get_by_name = AsyncMock(return_value=Mock())
+        mock_repo.ensure_unique_name.side_effect = DuplicateEntityException(
+            key="atlas.name_exists", params={"name": "Existing Atlas"}
+        )
 
         with pytest.raises(DuplicateEntityException) as exc:
             await service.create_atlas(atlas_base, admin_user)
@@ -108,7 +110,7 @@ class TestAtlasService:
             maps=[],
         )
         atlas.name = "Public Atlas"
-        mock_repo.get = AsyncMock(return_value=atlas)
+        mock_repo.get_or_raise.return_value = atlas
 
         result = await service.get_atlas(10, user)
         assert result.id == 10
@@ -125,7 +127,7 @@ class TestAtlasService:
             maps=[],
         )
         atlas.name = "Private Atlas"
-        mock_repo.get = AsyncMock(return_value=atlas)
+        mock_repo.get_or_raise.return_value = atlas
 
         with pytest.raises(EntityNotFoundException) as exc:
             # Service raises EntityNotFound instead of PermissionDenied for security masking if desired logic
@@ -139,7 +141,7 @@ class TestAtlasService:
         """Test update permission denied."""
         atlas = Mock(id=10, created_by_id=99)
         atlas.name = "Atlas"
-        mock_repo.get = AsyncMock(return_value=atlas)
+        mock_repo.get_or_raise.return_value = atlas
 
         service._has_manage_permission = AsyncMock(return_value=False)
 
@@ -154,9 +156,9 @@ class TestAtlasService:
     async def test_delete_atlas_success(self, service, mock_repo, admin_user):
         """Test delete atlas success."""
         atlas = Mock(id=10, created_by_id=1)
-        mock_repo.get = AsyncMock(return_value=atlas)
+        mock_repo.get_or_raise.return_value = atlas
         service._has_manage_permission = AsyncMock(return_value=True)
-        mock_repo.delete = AsyncMock(return_value=True)
+        mock_repo.delete.return_value = True
 
         result = await service.delete_atlas(10, admin_user)
         assert result is True

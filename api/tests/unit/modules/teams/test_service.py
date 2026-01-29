@@ -13,7 +13,7 @@ from app.modules.users.schemas import UserDetail
 class TestTeamService:
     @pytest.fixture
     def mock_repo(self):
-        repo = Mock()
+        repo = AsyncMock()
         repo.session = AsyncMock()
         return repo
 
@@ -85,7 +85,9 @@ class TestTeamService:
     async def test_create_team_duplicate_name(self, service, mock_repo, admin_user):
         """Test team creation with duplicate name."""
         team_base = TeamBase(name="Existing Team")
-        mock_repo.get_by_name = AsyncMock(return_value=Mock())
+        mock_repo.ensure_unique_name.side_effect = DuplicateEntityException(
+            key="team.name_exists", params={"name": "Existing Team"}
+        )
 
         with pytest.raises(DuplicateEntityException) as exc:
             await service.create_team(team_base, admin_user)
@@ -100,7 +102,7 @@ class TestTeamService:
             id=10, access_policy=AccessPolicy.PUBLIC, created_by_id=99, users=[]
         )
         team.name = "Public Team"
-        mock_repo.get = AsyncMock(return_value=team)
+        mock_repo.get_or_raise.return_value = team
 
         result = await service.get_team_by_id(10, user)
         assert result.id == 10
@@ -112,7 +114,7 @@ class TestTeamService:
             id=10, access_policy=AccessPolicy.STANDARD, created_by_id=99, users=[]
         )
         team.name = "Private Team"
-        mock_repo.get = AsyncMock(return_value=team)
+        mock_repo.get_or_raise.return_value = team
 
         with pytest.raises(PermissionDeniedException) as exc:
             await service.get_team_by_id(10, user)
@@ -129,7 +131,7 @@ class TestTeamService:
             users=[user],  # user is a member
         )
         team.name = "Private Team"
-        mock_repo.get = AsyncMock(return_value=team)
+        mock_repo.get_or_raise.return_value = team
 
         result = await service.get_team_by_id(10, user)
         assert result.id == 10
@@ -139,7 +141,7 @@ class TestTeamService:
         """Test update permission denied."""
         team = Mock(id=10)
         team.name = "Team"
-        mock_repo.get = AsyncMock(return_value=team)
+        mock_repo.get_or_raise.return_value = team
 
         update = TeamBase(name="Updated")
 
@@ -152,8 +154,8 @@ class TestTeamService:
     async def test_delete_team_success(self, service, mock_repo, admin_user):
         """Test delete team success."""
         team = Mock(id=10)
-        mock_repo.get = AsyncMock(return_value=team)
-        mock_repo.delete = AsyncMock(return_value=True)
+        mock_repo.get_or_raise.return_value = team
+        mock_repo.delete.return_value = True
 
         result = await service.delete_team(10, admin_user)
         assert result is True

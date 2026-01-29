@@ -13,7 +13,7 @@ from app.modules.users.schemas import UserDetail
 class TestMapService:
     @pytest.fixture
     def mock_repo(self):
-        repo = Mock()
+        repo = AsyncMock()
         repo.session = AsyncMock()
         return repo
 
@@ -110,7 +110,7 @@ class TestMapService:
             style="default",
         )
         map_obj.name = "Public Map"
-        mock_repo.get = AsyncMock(return_value=map_obj)
+        mock_repo.get_or_raise.return_value = map_obj
 
         result = await service.get_map(10, user)
         assert result.id == 10
@@ -118,7 +118,9 @@ class TestMapService:
     @pytest.mark.asyncio
     async def test_get_map_not_found(self, service, mock_repo, user):
         """Test get map not found."""
-        mock_repo.get = AsyncMock(return_value=None)
+        mock_repo.get_or_raise.side_effect = EntityNotFoundException(
+            entity="Map", key="map.not_found", params={"id": 999}
+        )
 
         with pytest.raises(EntityNotFoundException) as exc:
             await service.get_map(999, user)
@@ -129,7 +131,7 @@ class TestMapService:
     async def test_update_map_permission_denied(self, service, mock_repo, user):
         """Test update permission denied."""
         map_obj = Mock(id=10, created_by_id=99, atlas_id=1)
-        mock_repo.get = AsyncMock(return_value=map_obj)
+        mock_repo.get_or_raise.return_value = map_obj
         service._check_team_map_permission = AsyncMock(return_value=False)
 
         update = MapUpdate(name="Updated")
@@ -143,8 +145,8 @@ class TestMapService:
     async def test_delete_map_success(self, service, mock_repo, admin_user):
         """Test delete map success."""
         map_obj = Mock(id=10, created_by_id=1, atlas_id=1)
-        mock_repo.get = AsyncMock(return_value=map_obj)
-        mock_repo.delete = AsyncMock(return_value=True)
+        mock_repo.get_or_raise.return_value = map_obj
+        mock_repo.delete.return_value = True
 
         result = await service.delete_map(10, admin_user)
         assert result is True

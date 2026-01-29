@@ -80,6 +80,9 @@ class TestBaseRepository:
     @patch("app.core.repository.select")
     async def test_update_success(self, mock_select, repository, mock_session):
         """Test updating an entity."""
+        # Mock introspection to avoid SQLAlchemy inspection issues
+        repository._get_relationship_fields = Mock(return_value=set())
+
         # Setup mocks for get()
         mock_query = MagicMock()
         mock_select.return_value = mock_query

@@ -44,6 +44,7 @@ app = FastAPI(
     summary="Love and Mappyness",
     version="0.0.1",
     lifespan=lifespan,
+    root_path="/api",
 )
 
 app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)

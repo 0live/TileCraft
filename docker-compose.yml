@@ -1,4 +1,21 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: canopy-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - SITE_ADDRESS=${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
   api:
     container_name: canopy-api
     build:
@@ -33,3 +50,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+volumes:
+  caddy_data:
+  caddy_config:

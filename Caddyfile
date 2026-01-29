@@ -1,0 +1,20 @@
+{$SITE_ADDRESS} {
+
+    # Compression for performance
+    encode zstd gzip
+
+    # 1. API
+    handle_path /api/* {
+        reverse_proxy api:8000
+    }
+
+    # 2. Front-end
+    handle {
+        respond "Canopy Front-end is on the way!" 200
+    }
+
+    # Error handling
+    handle_errors {
+        respond "{err.status_code} {err.status_text}"
+    }
+}

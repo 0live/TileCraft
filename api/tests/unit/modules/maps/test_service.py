@@ -18,18 +18,13 @@ class TestMapService:
         return repo
 
     @pytest.fixture
-    def mock_atlas_service(self):
-        return Mock()
-
-    @pytest.fixture
     def mock_settings(self):
         return Settings()
 
     @pytest.fixture
-    def service(self, mock_repo, mock_atlas_service, mock_settings):
+    def service(self, mock_repo, mock_settings):
         return MapService(
             repository=mock_repo,
-            atlas_service=mock_atlas_service,
             settings=mock_settings,
         )
 
@@ -54,24 +49,19 @@ class TestMapService:
         )
 
     @pytest.mark.asyncio
-    async def test_create_map_success(
-        self, service, mock_repo, mock_atlas_service, admin_user
-    ):
+    async def test_create_map_success(self, service, mock_repo, admin_user):
         """Test successful map creation by admin."""
         map_create = MapCreate(
             name="New Map", atlas_id=1, description="Desc", style="default"
         )
 
-        # Mock Atlas Retrieval
+        # Mock Atlas Retrieval via repository helper
         atlas_mock = Mock(id=1, created_by_id=admin_user.id)
-        mock_atlas_service.get_atlas = AsyncMock(return_value=atlas_mock)
-
-        # Mock Map Existence check
-        mock_repo.get_by_atlas_and_name = AsyncMock(return_value=None)
+        mock_repo.get_related_entity.return_value = atlas_mock
 
         created_map = Mock(id=10)
         created_map.name = "New Map"
-        mock_repo.create = AsyncMock(return_value=created_map)
+        mock_repo.create.return_value = created_map
 
         result = await service.create_map(map_create, admin_user)
 
@@ -80,9 +70,7 @@ class TestMapService:
         mock_repo.session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_create_map_permission_denied(
-        self, service, mock_repo, mock_atlas_service, user
-    ):
+    async def test_create_map_permission_denied(self, service, mock_repo, user):
         """Test map creation denied if not owner or admin."""
         map_create = MapCreate(
             name="New Map", atlas_id=1, description="Desc", style="default"
@@ -90,7 +78,7 @@ class TestMapService:
 
         # Atlas owned by someone else
         atlas_mock = Mock(id=1, created_by_id=99)
-        mock_atlas_service.get_atlas = AsyncMock(return_value=atlas_mock)
+        mock_repo.get_related_entity.return_value = atlas_mock
         service._check_team_map_permission = AsyncMock(return_value=False)
 
         with pytest.raises(PermissionDeniedException) as exc:

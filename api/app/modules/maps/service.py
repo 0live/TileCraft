@@ -12,7 +12,6 @@ from app.core.exceptions import (
 )
 from app.core.permissions import has_any_role
 from app.modules.atlases.models import Atlas, AtlasTeamLink
-from app.modules.atlases.repository import AtlasRepository
 from app.modules.maps.models import Map
 from app.modules.maps.repository import MapRepository
 from app.modules.maps.schemas import MapCreate, MapDetail, MapSummary, MapUpdate
@@ -24,17 +23,15 @@ class MapService:
     def __init__(
         self,
         repository: MapRepository,
-        atlas_repository: AtlasRepository,
         settings: Settings,
     ):
         self.repository = repository
-        self.atlas_repository = atlas_repository
         self.settings = settings
 
     async def create_map(self, map: MapCreate, current_user: UserDetail) -> MapDetail:
-        # Verify Atlas exists (using repository instead of service)
-        atlas_obj = await self.atlas_repository.get_or_raise(
-            map.atlas_id, "Atlas", "atlas.not_found"
+        # Verify Atlas exists using repository helper (no cross-service dependency)
+        atlas_obj = await self.repository.get_related_entity(
+            Atlas, map.atlas_id, "Atlas", "atlas.not_found"
         )
 
         can_create = (
@@ -182,8 +179,7 @@ def get_map_service(
     settings: SettingsDep,
 ) -> MapService:
     repo = MapRepository(session, Map)
-    atlas_repo = AtlasRepository(session, Atlas)
-    return MapService(repo, atlas_repo, settings)
+    return MapService(repo, settings)
 
 
 MapServiceDep = Annotated[MapService, Depends(get_map_service)]

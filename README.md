@@ -4,7 +4,5 @@
 
 Todo:
 
-- Supprimer authenticate_user
-- Add caddy reverse proxy
 - Review token/refresh token/cookie policy
 - File upload

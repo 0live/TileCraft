@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'technical/overview',
+        'technical/installation',
         'technical/architecture',
       ],
     },

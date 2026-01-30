@@ -18,6 +18,7 @@ Canopy is built with a modern microservices architecture:
 
 ## Getting Started
 
+- [Installation Guide](./installation) - How to deploy Canopy in production.
 - [Architecture Overview](./architecture) - Detailed system architecture
 - [API Documentation](./api/overview) - RESTful API reference
 - [Docker Setup](./docker/overview) - Container configuration

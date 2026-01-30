@@ -13,16 +13,21 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - frontend
+      - backend
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   api:
     container_name: canopy-api
+    restart: unless-stopped
     build:
       context: ./api
       dockerfile: Dockerfile.prod
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./api:/code
     environment:
@@ -30,6 +35,19 @@ services:
     env_file:
       - .env
       - .env.local
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       postgis:
         condition: service_healthy
@@ -37,19 +55,32 @@ services:
   postgis:
     container_name: canopy-postgis
     image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    expose:
+      - "5432"
     env_file:
       - .env
       - .env.local
     volumes:
       - ./docker/postgis/data:/var/lib/postgresql/data
-      - ./docker/postgis/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Initialisation script
-    ports:
-      - "5432:5432"
+      - ./docker/postgis/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  frontend:
+  backend:
+    internal: true
 
 volumes:
   caddy_data:

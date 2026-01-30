@@ -62,6 +62,13 @@ app.add_middleware(
     https_only=False if get_settings().env == "dev" else True,
 )
 
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint for Docker healthcheck."""
+    return {"status": "healthy"}
+
+
 app.include_router(authRouter)
 app.include_router(userRouter)
 app.include_router(teamsRouter)

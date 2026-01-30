@@ -1,5 +1,12 @@
+# Development overrides - exposes ports for local debugging
 services:
   api:
     build:
       context: ./api
       dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+
+  postgis:
+    ports:
+      - "5432:5432"

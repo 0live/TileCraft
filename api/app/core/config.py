@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Martin tile server (internal network)
     martin_internal_url: str = "http://martin:3000"
 
+    # Google SSO
+    activate_google_auth: bool = False
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=("../.env", "../.env.local", ".env", ".env.local"), extra="ignore"
     )

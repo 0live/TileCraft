@@ -60,12 +60,12 @@ POSTGRES_EXTERNAL_PORT=15432
 
 To enable Google Sign-In:
 
-- `ACTIVATE_GOOGLE_SSO`: Set to `True` to enable
+- `ACTIVATE_GOOGLE_AUTH`: Set to `True` to enable
 - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID
 - `GOOGLE_CLIENT_SECRET`: Your Google OAuth Client Secret
 
 ```bash
-ACTIVATE_GOOGLE_SSO=True
+ACTIVATE_GOOGLE_AUTH=True
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 ```

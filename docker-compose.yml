@@ -105,6 +105,30 @@ services:
       postgis:
         condition: service_healthy
 
+  docs:
+    container_name: canopy-docs
+    build:
+      context: ./docs
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - LOCALE=${LOCALE:-en}
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   maputnik:
     container_name: canopy-maputnik
     image: ghcr.io/maplibre/maputnik:main

@@ -21,7 +21,12 @@
         reverse_proxy maputnik:8000
     }
 
-    # 3. Front-end
+    # 3. Documentation
+    handle /docs/* {
+        reverse_proxy docs:3000
+    }
+
+    # 4. Front-end
     handle {
         respond "Canopy Front-end is on the way!" 200
     }

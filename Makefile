@@ -1,6 +1,7 @@
 -include .env
 -include .env.local
 -include api/Makefile
+-include docs/Makefile
 
 DOCKER_COMPOSE = docker compose --env-file .env --env-file .env.local
 PROFILES = $(if $(COMPOSE_PROFILES),--profile $(COMPOSE_PROFILES),)
@@ -21,3 +22,5 @@ launch-tests:
 	cd api/ && uv run pytest
 
 create-app: genpkey build start setup-db
+
+

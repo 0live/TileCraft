@@ -8,7 +8,20 @@
         reverse_proxy api:8000
     }
 
-    # 2. Front-end
+    # 2. Maputnik style editor
+    # Route /editor/* with path stripping
+    handle_path /editor/* {
+        reverse_proxy maputnik:8000
+    }
+    # Route Maputnik assets (absolute paths in the HTML)
+    @maputnik_assets {
+        path /assets/* /manifest*.json /favicon*.ico
+    }
+    handle @maputnik_assets {
+        reverse_proxy maputnik:8000
+    }
+
+    # 3. Front-end
     handle {
         respond "Canopy Front-end is on the way!" 200
     }

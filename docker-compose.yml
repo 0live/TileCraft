@@ -77,6 +77,49 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  martin:
+    container_name: canopy-martin
+    image: ghcr.io/maplibre/martin:1.3.0
+    restart: unless-stopped
+    expose:
+      - "3000"
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgis:5432/${POSTGRES_DB}
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/catalog"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      postgis:
+        condition: service_healthy
+
+  maputnik:
+    container_name: canopy-maputnik
+    image: ghcr.io/maplibre/maputnik:main
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - backend
+      - frontend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Optional: Expose PostGIS externally
   # Activate by setting COMPOSE_PROFILES=expose-db in .env
   postgis-external:

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     postgres_port: str = "5432"
     database_url: str = "postgresql+psycopg://default:default@localhost:5432/default"
 
+    # Martin tile server (internal network)
+    martin_internal_url: str = "http://martin:3000"
+
     model_config = SettingsConfigDict(
         env_file=("../.env", "../.env.local", ".env", ".env.local"), extra="ignore"
     )

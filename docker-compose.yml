@@ -38,7 +38,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -76,6 +76,23 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Optional: Expose PostGIS externally
+  # Activate by setting COMPOSE_PROFILES=expose-db in .env
+  postgis-external:
+    container_name: canopy-postgis-external
+    profiles: ["expose-db"]
+    image: alpine/socat
+    restart: unless-stopped
+    command: "TCP-LISTEN:5432,fork,reuseaddr TCP:postgis:5432"
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      postgis:
+        condition: service_healthy
 
 networks:
   frontend:

@@ -3,12 +3,13 @@
 -include api/Makefile
 
 DOCKER_COMPOSE = docker compose --env-file .env --env-file .env.local
+PROFILES = $(if $(COMPOSE_PROFILES),--profile $(COMPOSE_PROFILES),)
 
 build:
 	$(DOCKER_COMPOSE) build
 
 start:
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) $(PROFILES) up -d
 
 stop:
 	$(DOCKER_COMPOSE) down -v

@@ -14,6 +14,10 @@ J'ai mis en place l'initialisation du Frontend React et l'intégration de Maputn
 ### 2. Intégration Maputnik (`MaputnikEmbed.tsx`)
 
 - **Iframe Same-Origin** : Pointe vers `/editor/` via le proxy Caddy.
+- **Injection UI Avancée (React Portals)** :
+  - Nous injectons nos propres boutons React ("Retour", "Sauvegarder") directement _dans_ la barre d'outils de l'iframe Maputnik.
+  - Utilisation de `ReactDOM.createPortal` pour rendre des composants du contexte parent dans le DOM de l'iframe.
+  - **MutationObserver** : Surveille le DOM de l'iframe pour ré-injecter notre point de montage si React (côté Maputnik) rafraîchit l'interface.
 - **Suppression des Alertes** : Injection d'un script dans l'`onLoad` de l'iframe qui surcharge `window.confirm` pour accepter automatiquement les avertissements "Discard changes".
 - **Récupération du Style** :
   - Algorithme robuste qui cherche d'abord la clé `maputnik:latest_style` pour trouver l'ID du style actif.

@@ -67,16 +67,14 @@ function App() {
         </div>
       ) : (
         <div className="editor-view" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '1rem', borderBottom: '1px solid #eee' }}>
-            <button 
-                onClick={() => setSelectedStyle(null)}
-                style={{ cursor: 'pointer', padding: '5px 10px' }}
-            >
-                &larr; Retour à la sélection
-            </button>
-          </div>
           <div style={{ flex: 1 }}>
-            <MaputnikEmbed styleUrl={selectedStyle} />
+            <MaputnikEmbed 
+                styleUrl={selectedStyle} 
+                onBack={() => {
+                    // Force clean up if needed
+                    setSelectedStyle(null);
+                }} 
+            />
           </div>
         </div>
       )}

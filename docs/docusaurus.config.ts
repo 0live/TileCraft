@@ -77,7 +77,7 @@ const config: Config = {
       title: 'Canopy',
       logo: {
         alt: 'Canopy Logo',
-        src: 'img/logo.svg',
+        src: 'img/canopy.svg',
       },
       items: [
         {

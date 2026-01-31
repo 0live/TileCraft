@@ -144,6 +144,19 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  frontend:
+    container_name: canopy-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - WATCHPACK_POLLING=true
+    networks:
+      - frontend
+
   # Optional: Expose PostGIS externally
   # Activate by setting COMPOSE_PROFILES=expose-db in .env
   postgis-external:

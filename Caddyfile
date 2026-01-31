@@ -27,8 +27,9 @@
     }
 
     # 4. Front-end
+
     handle {
-        respond "Canopy Front-end is on the way!" 200
+        reverse_proxy frontend:5173
     }
 
     # Error handling

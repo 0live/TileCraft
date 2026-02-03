@@ -35,6 +35,19 @@ class AuthService:
         """Hash the refresh token for storage."""
         return hashlib.sha256(token.encode()).hexdigest()
 
+    async def _issue_tokens(self, user: UserDetail, response: Response) -> AuthResponse:
+        """Helper to issue access/refresh tokens and set cookie."""
+        access_token_obj = get_token(user, settings=self.settings)
+        refresh_token_str = await self.create_refresh_token(user.id)
+
+        self.set_refresh_cookie(response, refresh_token_str)
+
+        return AuthResponse(
+            access_token=access_token_obj.access_token,
+            token_type=access_token_obj.token_type,
+            refresh_token=refresh_token_str,
+        )
+
     async def register(self, user: UserCreate) -> UserDetail:
         """Register a new user and send verification email."""
         verification_token = secrets.token_urlsafe(32)
@@ -52,7 +65,7 @@ class AuthService:
             httponly=True,
             secure=False if self.settings.env == "dev" else True,
             samesite="lax" if self.settings.env == "dev" else "strict",
-            max_age=30 * 24 * 60 * 60,  # 30 days
+            max_age=self.settings.refresh_token_expire_days * 24 * 60 * 60,
         )
 
     async def create_refresh_token(self, user_id: int) -> str:
@@ -60,8 +73,9 @@ class AuthService:
         token_str = secrets.token_urlsafe(32)
         token_hash = self._hash_token(token_str)
 
-        # 30 days expiration
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=self.settings.refresh_token_expire_days
+        )
 
         refresh_token = RefreshToken(
             user_id=user_id,
@@ -78,16 +92,7 @@ class AuthService:
         user = await self.user_service.authenticate_user(username, password)
 
         user_detail = UserDetail.model_validate(user)
-        access_token_obj = get_token(user_detail, settings=self.settings)
-        refresh_token_str = await self.create_refresh_token(user.id)
-
-        self.set_refresh_cookie(response, refresh_token_str)
-
-        return AuthResponse(
-            access_token=access_token_obj.access_token,
-            token_type=access_token_obj.token_type,
-            refresh_token=refresh_token_str,
-        )
+        return await self._issue_tokens(user_detail, response)
 
     async def refresh_access_token(
         self, refresh_token: Optional[str], response: Response
@@ -123,29 +128,9 @@ class AuthService:
         await self.repository.revoke_refresh_token(stored_token.id)
 
         # Get user to issue new tokens
-        user = await self.user_service.get_user_by_id(
-            stored_token.user_id,
-            current_user=UserDetail(
-                id=stored_token.user_id,
-                username="system",
-                email="system@local.host",
-                roles=[],
-            ),
-        )
+        user = await self.user_service.get_user_internal(stored_token.user_id)
 
-        # Re-issue Access Token
-        access_token_obj = get_token(user, settings=self.settings)
-
-        # Re-issue Refresh Token
-        new_refresh_token_str = await self.create_refresh_token(user.id)
-
-        self.set_refresh_cookie(response, new_refresh_token_str)
-
-        return AuthResponse(
-            access_token=access_token_obj.access_token,
-            token_type=access_token_obj.token_type,
-            refresh_token=new_refresh_token_str,
-        )
+        return await self._issue_tokens(user, response)
 
     async def logout(self, refresh_token: Optional[str], response: Response) -> None:
         """Revoke the refresh token and clear cookie."""
@@ -173,31 +158,9 @@ class AuthService:
         """Handle Google OAuth callback."""
         user_info = await GoogleAuthService.callback(request)
 
-        email = user_info.get("email")
-        existing_user = await self.user_service.get_by_email(email)
+        user = await self.user_service.get_or_create_google_user(user_info)
 
-        user = existing_user
-        if not existing_user:
-            username = user_info.get("name") or email.split("@")[0]
-            user_create = UserCreate(
-                email=email,
-                username=username,
-                password=secrets.token_urlsafe(15),
-            )
-            user = await self.user_service.create_user(user_create, is_verified=True)
-        else:
-            user = UserDetail.model_validate(existing_user)
-
-        access_token_obj = get_token(user, settings=self.settings)
-        refresh_token_str = await self.create_refresh_token(user.id)
-
-        self.set_refresh_cookie(response, refresh_token_str)
-
-        return AuthResponse(
-            access_token=access_token_obj.access_token,
-            token_type=access_token_obj.token_type,
-            refresh_token=refresh_token_str,
-        )
+        return await self._issue_tokens(user, response)
 
 
 # =============================================================================

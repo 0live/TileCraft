@@ -1,4 +1,5 @@
-from typing import Annotated, Optional
+import secrets
+from typing import Annotated, Any, Optional
 
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
@@ -57,6 +58,18 @@ class UserService:
             options=[selectinload(User.teams).selectinload(Team.users)],
         )
 
+    async def get_user_internal(self, user_id: int) -> UserDetail:
+        """
+        Get user by ID without permission checks.
+        Internal use only (e.g. AuthService, system tasks).
+        """
+        return await self.repository.get_or_raise(
+            user_id,
+            "User",
+            "user.not_found",
+            options=[selectinload(User.teams).selectinload(Team.users)],
+        )
+
     async def get_by_username(
         self, username: str, with_relations: bool = False
     ) -> Optional[User]:
@@ -76,12 +89,39 @@ class UserService:
     ) -> UserDetail:
         """
         Create a new user with validated credentials.
-
-        Validates email/username uniqueness, hashes password, assigns USER role.
-        Used by AuthService for registration and OAuth user creation.
         """
         await self.repository.validate_unique_credentials(user.email, user.username)
+        user_data = self._prepare_user_creation_data(
+            user, is_verified, verification_token
+        )
+        new_user = await self.repository.create(user_data)
+        await self.repository.session.commit()
+        return await self.repository.get(
+            new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
+        )
 
+    async def get_or_create_google_user(self, user_info: dict) -> UserDetail:
+        """Get existing user by email or create a new one for Google OAuth."""
+        email = user_info.get("email")
+        existing_user = await self.get_by_email(email)
+
+        if existing_user:
+            return UserDetail.model_validate(existing_user)
+
+        username = user_info.get("name") or email.split("@")[0]
+        user_create = UserCreate(
+            email=email,
+            username=username,
+            password=secrets.token_urlsafe(15),
+        )
+        return await self.create_user(user_create, is_verified=True)
+
+    def _prepare_user_creation_data(
+        self,
+        user: UserCreate,
+        is_verified: bool,
+        verification_token: Optional[str],
+    ) -> dict[str, Any]:
         hashed_pw = hash_password(user.password)
         user_data = user.model_dump(exclude={"password", "roles", "teams"})
         user_data["hashed_password"] = hashed_pw
@@ -90,13 +130,7 @@ class UserService:
 
         if verification_token:
             user_data["verification_token"] = verification_token
-
-        new_user = await self.repository.create(user_data)
-        await self.repository.session.commit()
-
-        return await self.repository.get(
-            new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
-        )
+        return user_data
 
     async def verify_user(self, token: str) -> bool:
         """Verify a user account using the token."""
@@ -119,7 +153,9 @@ class UserService:
             return user
         raise AuthenticationException()
 
-    async def delete_user(self, user_id: int, current_user: UserDetail) -> bool:
+    async def delete_user(
+        self, user_id: int, current_user: UserDetail
+    ) -> dict[str, str]:
         if not has_any_role(current_user, [UserRole.ADMIN]):
             raise PermissionDeniedException(
                 params={"detail": "user.delete_permission_denied"}
@@ -135,27 +171,8 @@ class UserService:
     async def update_user(
         self, user_id: int, user_update: UserUpdate, current_user: UserDetail
     ) -> UserDetail:
-        if user_id != current_user.id and not has_any_role(
-            current_user, [UserRole.ADMIN]
-        ):
-            raise PermissionDeniedException(
-                params={"detail": "user.update_permission_denied"}
-            )
-
-        update_data = user_update.model_dump(
-            exclude_unset=True, exclude={"password", "roles"}
-        )
-
-        if user_update.password is not None:
-            hashed_password = hash_password(user_update.password)
-            update_data["hashed_password"] = hashed_password
-
-        if user_update.roles is not None:
-            if not has_any_role(current_user, [UserRole.ADMIN]):
-                raise PermissionDeniedException(
-                    params={"detail": "user.role_permission_denied"}
-                )
-            update_data["roles"] = user_update.roles
+        self._ensure_update_permissions(user_id, current_user)
+        update_data = self._prepare_update_data(user_update, current_user)
 
         try:
             await self.repository.update(
@@ -163,21 +180,52 @@ class UserService:
             )
             await self.repository.session.commit()
         except IntegrityError as e:
-            await self.repository.session.rollback()
-            if "ix_user_username" in str(e.orig):
-                raise DuplicateEntityException(
-                    key="user.username_exists",
-                    params={"username": user_update.username},
-                )
-            if "ix_user_email" in str(e.orig):
-                raise DuplicateEntityException(
-                    key="user.email_exists", params={"email": user_update.email}
-                )
-            raise e
+            await self._handle_update_integrity_error(e, user_update)
 
         return await self.repository.get(
             user_id, options=[selectinload(User.teams).selectinload(Team.users)]
         )
+
+    def _ensure_update_permissions(self, user_id: int, current_user: UserDetail):
+        if user_id != current_user.id and not has_any_role(
+            current_user, [UserRole.ADMIN]
+        ):
+            raise PermissionDeniedException(
+                params={"detail": "user.update_permission_denied"}
+            )
+
+    def _prepare_update_data(
+        self, user_update: UserUpdate, current_user: UserDetail
+    ) -> dict[str, Any]:
+        update_data = user_update.model_dump(
+            exclude_unset=True, exclude={"password", "roles"}
+        )
+
+        if user_update.password is not None:
+            update_data["hashed_password"] = hash_password(user_update.password)
+
+        if user_update.roles is not None:
+            if not has_any_role(current_user, [UserRole.ADMIN]):
+                raise PermissionDeniedException(
+                    params={"detail": "user.role_permission_denied"}
+                )
+            update_data["roles"] = user_update.roles
+        return update_data
+
+    async def _handle_update_integrity_error(
+        self, e: IntegrityError, user_update: UserUpdate
+    ):
+        await self.repository.session.rollback()
+        if "ix_user_username" in str(e.orig):
+            raise DuplicateEntityException(
+                key="user.username_exists",
+                params={"username": user_update.username},
+            )
+        if "ix_user_email" in str(e.orig):
+            raise DuplicateEntityException(
+                key="user.email_exists", params={"email": user_update.email}
+            )
+        raise e
 
 
 # =============================================================================

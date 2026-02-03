@@ -19,6 +19,7 @@ class UserSummary(UserBase):
 
 class UserDetail(UserSummary):
     teams: List[TeamSummary] = []
+    is_verified: bool = False
 
 
 class UserCreate(UserBase):

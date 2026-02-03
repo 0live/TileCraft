@@ -12,14 +12,9 @@ from app.core.exceptions import (
     EntityNotFoundException,
     PermissionDeniedException,
 )
+from app.core.hashing import hash_password, verify_password
 from app.core.messages import MessageService
 from app.core.permissions import has_any_role
-from app.core.security import (
-    get_token,
-    hash_password,
-    verify_password,
-)
-from app.modules.auth.schemas import Token
 from app.modules.teams.models import Team
 from app.modules.users.models import User, UserRole
 from app.modules.users.repository import UserRepository
@@ -73,7 +68,12 @@ class UserService:
     async def get_by_email(self, email: str) -> Optional[User]:
         return await self.repository.get_by_email(email)
 
-    async def create_user(self, user: UserCreate) -> UserDetail:
+    async def create_user(
+        self,
+        user: UserCreate,
+        is_verified: bool = False,
+        verification_token: Optional[str] = None,
+    ) -> UserDetail:
         """
         Create a new user with validated credentials.
 
@@ -86,6 +86,10 @@ class UserService:
         user_data = user.model_dump(exclude={"password", "roles", "teams"})
         user_data["hashed_password"] = hashed_pw
         user_data["roles"] = [UserRole.USER]
+        user_data["is_verified"] = is_verified
+
+        if verification_token:
+            user_data["verification_token"] = verification_token
 
         new_user = await self.repository.create(user_data)
         await self.repository.session.commit()
@@ -94,13 +98,25 @@ class UserService:
             new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
         )
 
-    async def authenticate_user(self, username: str, password: str) -> Optional[Token]:
-        """Authenticate a user (kept for backwards compatibility)."""
+    async def verify_user(self, token: str) -> bool:
+        """Verify a user account using the token."""
+        user = await self.repository.get_by_verification_token(token)
+        if not user:
+            return False
+
+        user.is_verified = True
+        user.verification_token = None
+        await self.repository.session.commit()
+        return True
+
+    async def authenticate_user(self, username: str, password: str) -> Optional[User]:
+        """Authenticate a user and return the user object."""
         user = await self.repository.get_by_username(
             username, options=[selectinload(User.teams).selectinload(Team.users)]
         )
+
         if user and verify_password(password, user.hashed_password):
-            return get_token(UserDetail.model_validate(user), settings=self.settings)
+            return user
         raise AuthenticationException()
 
     async def delete_user(self, user_id: int, current_user: UserDetail) -> bool:

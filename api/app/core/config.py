@@ -1,6 +1,10 @@
 from functools import lru_cache
+from typing import Any, List
 
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.exceptions import SecurityException
 
 
 class Settings(BaseSettings):
@@ -9,6 +13,38 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 120
     locale: str = "en"
+    site_address: str = ""
+    cors_origins: List[str] = ["*"]
+
+    @field_validator("cors_origins", mode="before")
+    def assemble_cors_origins(cls, v: Any) -> Any:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise SecurityException(key="config.cors_origins_invalid_format")
+
+    @property
+    def allowed_hosts(self) -> List[str]:
+        """Derive allowed hosts from SITE_ADDRESS."""
+        if self.env == "dev":
+            return ["*"]
+
+        if self.site_address:
+            host = (
+                self.site_address.strip().replace("https://", "").replace("http://", "")
+            )
+            host = host.split("/")[0]
+            return [host, f"*.{host}"]
+
+        raise SecurityException(key="config.site_address_missing")
+
+    @field_validator("private_key")
+    def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
+        values = info.data
+        if values.get("env") == "prod" and v == "your_default_secret_key_change_me":
+            raise SecurityException(key="config.insecure_secret_key")
+        return v
 
     # Database components
     postgres_user: str = "default"

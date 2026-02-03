@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
+from app.core.messages import MessageService
 from app.modules.auth.schemas import Token
 from app.modules.auth.services.auth_service import AuthServiceDep
 from app.modules.users.schemas import UserCreate, UserDetail
@@ -20,9 +21,38 @@ async def register(user: UserCreate, service: AuthServiceDep):
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     service: AuthServiceDep,
+    response: Response,
 ):
     """Login with username and password."""
-    return await service.login(form_data.username, form_data.password)
+    return await service.login(form_data.username, form_data.password, response)
+
+
+@authRouter.post("/refresh", response_model=Token)
+async def refresh_token(
+    service: AuthServiceDep,
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie()] = None,
+):
+    """Refresh access token using http-only cookie."""
+    return await service.refresh_access_token(refresh_token, response)
+
+
+@authRouter.post("/logout")
+async def logout(
+    service: AuthServiceDep,
+    response: Response,
+    refresh_token: Annotated[str | None, Cookie()] = None,
+):
+    """Logout and revoke refresh token."""
+    await service.logout(refresh_token, response)
+    return {"message": MessageService.get_message("auth.logout_success")}
+
+
+@authRouter.get("/verify")
+async def verify_email(token: str, service: AuthServiceDep):
+    """Verify user account via email token."""
+    await service.verify_email(token)
+    return {"message": MessageService.get_message("auth.verification_success")}
 
 
 @authRouter.get("/google")
@@ -32,6 +62,11 @@ async def login_google(request: Request, service: AuthServiceDep):
 
 
 @authRouter.get("/google/callback", response_model=Token)
-async def google_callback(request: Request, service: AuthServiceDep):
+async def google_callback(
+    request: Request,
+    service: AuthServiceDep,
+    response: Response,
+):
     """Handle Google OAuth callback."""
-    return await service.google_callback(request)
+    """Handle Google OAuth callback."""
+    return await service.google_callback(request, response)

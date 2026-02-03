@@ -48,6 +48,13 @@ class AuthenticationException(DomainException):
         super().__init__(key=key, params=params)
 
 
+class SecurityException(APIException):
+    """Exception raised for security configuration errors."""
+
+    def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
+        super().__init__(key=key, params=params)
+
+
 class DuplicateEntityException(DomainException):
     """Exception raised when an entity already exists."""
 

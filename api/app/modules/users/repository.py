@@ -25,6 +25,11 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.exec(query)
         return result.first()
 
+    async def get_by_verification_token(self, token: str) -> Optional[User]:
+        query = select(User).where(User.verification_token == token)
+        result = await self.session.exec(query)
+        return result.first()
+
     async def validate_unique_credentials(
         self,
         email: str,
@@ -33,18 +38,13 @@ class UserRepository(BaseRepository[User]):
     ) -> None:
         """
         Validate that email and username are unique.
-
-        This method centralizes the validation logic to avoid duplication
-        between UserService and AuthService, respecting the DRY principle.
         """
-        # Check email uniqueness
         existing_email = await self.get_by_email(email)
         if existing_email and existing_email.id != exclude_user_id:
             raise DuplicateEntityException(
                 key="user.email_exists", params={"email": email}
             )
 
-        # Check username uniqueness
         existing_username = await self.get_by_username(username)
         if existing_username and existing_username.id != exclude_user_id:
             raise DuplicateEntityException(

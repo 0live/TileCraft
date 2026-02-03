@@ -4,8 +4,12 @@ from fastapi.responses import JSONResponse
 
 from app.core.exceptions import (
     APIException,
+    AuthenticationException,
     DomainException,
     DuplicateEntityException,
+    EntityNotFoundException,
+    PermissionDeniedException,
+    SecurityException,
 )
 from app.core.logging_config import logger
 from app.core.messages import MessageService
@@ -90,3 +94,27 @@ async def api_exception_handler(request: Request, exc: APIException):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": msg, "key": exc.key, "params": exc.params},
     )
+
+
+async def security_exception_handler(request: Request, exc: SecurityException):
+    logger.critical(f"Security error: {exc.key}", extra={"params": exc.params})
+    msg = MessageService.get_message(exc.key, **exc.params)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": msg, "key": exc.key, "params": exc.params},
+    )
+
+
+def add_all_exception_handlers(app):
+    app.add_exception_handler(
+        DuplicateEntityException, duplicate_entity_exception_handler
+    )
+    app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)
+    app.add_exception_handler(PermissionDeniedException, permission_denied_handler)
+    app.add_exception_handler(AuthenticationException, authentication_exception_handler)
+    app.add_exception_handler(DomainException, domain_exception_handler)
+    app.add_exception_handler(SecurityException, security_exception_handler)
+    app.add_exception_handler(
+        RequestValidationError, request_validation_exception_handler
+    )
+    app.add_exception_handler(APIException, api_exception_handler)

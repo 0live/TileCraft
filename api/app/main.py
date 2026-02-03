@@ -1,28 +1,13 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.config import get_settings
 from app.core.database import sessionmanager
-from app.core.exceptions import (
-    APIException,
-    AuthenticationException,
-    DomainException,
-    DuplicateEntityException,
-    EntityNotFoundException,
-    PermissionDeniedException,
-)
-from app.core.exceptions.handlers import (
-    api_exception_handler,
-    authentication_exception_handler,
-    domain_exception_handler,
-    duplicate_entity_exception_handler,
-    entity_not_found_handler,
-    permission_denied_handler,
-    request_validation_exception_handler,
-)
+from app.core.exceptions.handlers import add_all_exception_handlers
 from app.core.messages import MessageService
 from app.modules.atlases.endpoints import atlasesRouter
 from app.modules.auth.endpoints import authRouter
@@ -47,19 +32,28 @@ app = FastAPI(
     root_path="/api",
 )
 
-app.add_exception_handler(EntityNotFoundException, entity_not_found_handler)
-app.add_exception_handler(DuplicateEntityException, duplicate_entity_exception_handler)
-app.add_exception_handler(PermissionDeniedException, permission_denied_handler)
-app.add_exception_handler(AuthenticationException, authentication_exception_handler)
-app.add_exception_handler(DomainException, domain_exception_handler)
-app.add_exception_handler(APIException, api_exception_handler)
-app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
+add_all_exception_handlers(app)
 
 app.add_middleware(
     SessionMiddleware,
     secret_key=get_settings().private_key,
     same_site="lax" if get_settings().env == "dev" else "strict",
     https_only=False if get_settings().env == "dev" else True,
+)
+
+if get_settings().cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in get_settings().cors_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=get_settings().allowed_hosts,
 )
 
 

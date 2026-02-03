@@ -8,7 +8,10 @@
   "auth": {
     "failed": "Authentification échouée.",
     "invalid_credentials": "Impossible de valider les identifiants.",
-    "user_not_found": "Opération non autorisée, vous devez être connecté."
+    "refresh_token_missing": "Le jeton de rafraîchissement est manquant.",
+    "user_not_found": "Opération non autorisée, vous devez être connecté.",
+    "logout_success": "Déconnexion réussie.",
+    "verification_success": "Compte vérifié avec succès."
   },
   "atlas": {
     "not_found": "Atlas non trouvé.",
@@ -48,5 +51,10 @@
     "role_permission_denied": "Vous n'avez pas la permission de changer les rôles.",
     "team_permission_denied": "Vous n'avez pas la permission de changer les équipes.",
     "deleted_success": "Utilisateur supprimé avec succès."
+  },
+  "config": {
+    "site_address_missing": "SITE_ADDRESS doit être défini en mode production ou hors de l'environnement 'dev'.",
+    "cors_origins_invalid_format": "CORS_ORIGINS doit être une liste JSON valide de chaînes de caractères.",
+    "insecure_secret_key": "Vous devez définir une PRIVATE_KEY sécurisée en production. N'utilisez pas la valeur par défaut."
   }
 }

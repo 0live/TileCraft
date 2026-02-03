@@ -8,7 +8,10 @@
   "auth": {
     "failed": "Authentication failed.",
     "invalid_credentials": "Could not validate credentials.",
-    "user_not_found": "Permission denied, you must be logged in."
+    "refresh_token_missing": "Refresh token is missing.",
+    "user_not_found": "Permission denied, you must be logged in.",
+    "logout_success": "Logged out successfully",
+    "verification_success": "Account verified successfully"
   },
   "atlas": {
     "not_found": "Atlas not found.",
@@ -48,5 +51,10 @@
     "role_permission_denied": "You don't have permission to change roles.",
     "team_permission_denied": "You don't have permission to change teams.",
     "deleted_success": "User deleted successfully."
+  },
+  "config": {
+    "site_address_missing": "SITE_ADDRESS must be set in production mode or when not in 'dev' environment.",
+    "cors_origins_invalid_format": "CORS_ORIGINS must be a valid JSON list of strings.",
+    "insecure_secret_key": "You must set a secure PRIVATE_KEY in production. Do not use the default."
   }
 }

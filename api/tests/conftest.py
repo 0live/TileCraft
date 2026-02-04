@@ -143,3 +143,32 @@ def token_factory_fixture(client: AsyncClient):
         return response.json()["access_token"]
 
     return _get_token
+
+
+@pytest_asyncio.fixture(name="register_and_verify_user")
+async def register_and_verify_user_fixture(client: AsyncClient, session: AsyncSession):
+    """
+    Helper fixture to register a user and immediately verify them.
+    Returns a function that takes user_data dict and returns the user response.
+    """
+    from app.modules.users.models import User
+    from sqlmodel import select
+
+    async def _register_and_verify(user_data: dict) -> dict:
+        # 1. Register via /auth/register
+        response = await client.post("/auth/register", json=user_data)
+        assert response.status_code == 200
+        user_response = response.json()
+
+        # 2. Directly verify the user in the database
+        stmt = select(User).where(User.email == user_data["email"])
+        result = await session.execute(stmt)
+        user = result.scalar_one()
+        user.is_verified = True
+        user.verification_token = None
+        session.add(user)
+        await session.commit()
+
+        return user_response
+
+    return _register_and_verify

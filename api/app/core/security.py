@@ -68,4 +68,8 @@ async def get_current_user(
     user = await service.get_by_username(username, with_relations=True)
     if user is None:
         raise AuthenticationException(params={"detail": "auth.user_not_found"})
+
+    if not user.is_verified:
+        raise AuthenticationException(params={"detail": "auth.account_not_verified"})
+
     return UserDetail.model_validate(user)

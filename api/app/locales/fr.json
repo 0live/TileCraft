@@ -10,6 +10,7 @@
     "invalid_credentials": "Impossible de valider les identifiants.",
     "refresh_token_missing": "Le jeton de rafraîchissement est manquant.",
     "user_not_found": "Opération non autorisée, vous devez être connecté.",
+    "account_not_verified": "Veuillez vérifier votre adresse email avant d'accéder à cette ressource.",
     "logout_success": "Déconnexion réussie.",
     "verification_success": "Compte vérifié avec succès."
   },

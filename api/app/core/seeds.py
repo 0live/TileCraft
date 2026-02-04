@@ -63,6 +63,7 @@ class Seeder:
             username="admin",
             hashed_password=hash_password("admin"),
             roles=[UserRole.USER, UserRole.ADMIN],
+            is_verified=True,
         )
         editor = User(
             email="editor@test.com",
@@ -70,6 +71,7 @@ class Seeder:
             hashed_password=hash_password("editor"),
             roles=[UserRole.USER, UserRole.MANAGE_ATLASES_AND_MAPS],
             teams=[team1],
+            is_verified=True,
         )
         user = User(
             email="user@test.com",
@@ -77,6 +79,7 @@ class Seeder:
             hashed_password=hash_password("user"),
             roles=[UserRole.USER],
             teams=[team2],
+            is_verified=True,
         )
 
         session.add_all([admin, editor, user])

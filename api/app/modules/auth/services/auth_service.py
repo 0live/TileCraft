@@ -25,10 +25,12 @@ class AuthService:
         self,
         repository: AuthRepository,
         user_service: UserService,
+        email_service: EmailService,
         settings: Settings,
     ):
         self.repository = repository
         self.user_service = user_service
+        self.email_service = email_service
         self.settings = settings
 
     def _hash_token(self, token: str) -> str:
@@ -54,7 +56,7 @@ class AuthService:
         new_user = await self.user_service.create_user(
             user, is_verified=False, verification_token=verification_token
         )
-        await EmailService.send_verification_email(user.email, verification_token)
+        await self.email_service.send_verification_email(user.email, verification_token)
         return new_user
 
     def set_refresh_cookie(self, response: Response, token: str) -> None:
@@ -174,7 +176,8 @@ def get_auth_service(
     session: SessionDep, user_service: UserServiceDep, settings: SettingsDep
 ) -> AuthService:
     repo = AuthRepository(session, RefreshToken)
-    return AuthService(repo, user_service, settings)
+    email_service = EmailService(settings)
+    return AuthService(repo, user_service, email_service, settings)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

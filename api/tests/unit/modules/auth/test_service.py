@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from app.core.config import Settings
@@ -27,10 +27,15 @@ class TestAuthService:
         )
 
     @pytest.fixture
-    def service(self, mock_repo, mock_user_service, mock_settings):
+    def mock_email_service(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(self, mock_repo, mock_user_service, mock_email_service, mock_settings):
         return AuthService(
             repository=mock_repo,
             user_service=mock_user_service,
+            email_service=mock_email_service,
             settings=mock_settings,
         )
 
@@ -57,7 +62,9 @@ class TestAuthService:
     # =========================================================================
 
     @pytest.mark.asyncio
-    async def test_register_success(self, service, mock_user_service):
+    async def test_register_success(
+        self, service, mock_user_service, mock_email_service
+    ):
         """Test successful user registration."""
         user_create = UserCreate(
             username="newuser", email="new@test.com", password="password123"
@@ -72,16 +79,12 @@ class TestAuthService:
         )
         mock_user_service.create_user = AsyncMock(return_value=expected_user)
 
-        with patch(
-            "app.modules.auth.services.auth_service.EmailService.send_verification_email",
-            new_callable=AsyncMock,
-        ) as mock_email:
-            result = await service.register(user_create)
+        result = await service.register(user_create)
 
-            assert result.username == "newuser"
-            assert result.is_verified is False
-            mock_user_service.create_user.assert_called_once()
-            mock_email.assert_called_once()
+        assert result.username == "newuser"
+        assert result.is_verified is False
+        mock_user_service.create_user.assert_called_once()
+        mock_email_service.send_verification_email.assert_called_once()
 
     # =========================================================================
     # Login Tests

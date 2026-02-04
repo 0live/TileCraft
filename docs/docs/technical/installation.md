@@ -68,6 +68,27 @@ ENV=prod
 SITE_ADDRESS=maps.mycompany.com
 ```
 
+#### Email / SMTP
+
+Configure your SMTP provider for email verification:
+
+- `SMTP_HOST`: SMTP server hostname (e.g., `smtp.sendgrid.net`)
+- `SMTP_PORT`: SMTP port (typically `587` for STARTTLS or `465` for TLS)
+- `SMTP_USER`: SMTP authentication username
+- `SMTP_PASSWORD`: SMTP authentication password
+- `SMTP_FROM_EMAIL`: Sender email address (e.g., `noreply@yourdomain.com`)
+- `SMTP_USE_TLS`: Set to `True` for implicit TLS (port 465)
+- `SMTP_STARTTLS`: Set to `True` for STARTTLS (port 587)
+
+```bash
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASSWORD=your_sendgrid_api_key
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_STARTTLS=True
+```
+
 ---
 
 ### Optional Variables

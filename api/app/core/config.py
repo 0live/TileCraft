@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
 
+    # Email / SMTP settings
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str = "noreply@canopy.dev"
+    smtp_use_tls: bool = False
+    smtp_starttls: bool = False
+
     model_config = SettingsConfigDict(
         env_file=("../.env", "../.env.local", ".env", ".env.local"), extra="ignore"
     )

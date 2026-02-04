@@ -60,3 +60,12 @@ class DuplicateEntityException(DomainException):
 
     def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
         super().__init__(key=key, params=params)
+
+
+class EmailSendException(APIException):
+    """Exception raised when email sending fails."""
+
+    def __init__(
+        self, key: str = "email.send_failed", params: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(key=key, params=params)

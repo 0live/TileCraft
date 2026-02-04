@@ -1,5 +1,19 @@
 {$SITE_ADDRESS} {
 
+    # Security Headers
+    header {
+        # Force HTTPS (HSTS)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Prevent MIME-sniffing
+        X-Content-Type-Options "nosniff"
+        # Protect against Clickjacking (allow same origin)
+        X-Frame-Options "SAMEORIGIN"
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove Server header for obscurity
+        -Server
+    }
+
     # Compression for performance
     encode zstd gzip
 

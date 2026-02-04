@@ -1,3 +1,8 @@
+# Snippets
+(no_robots) {
+    header X-Robots-Tag "none"
+}
+
 {$SITE_ADDRESS} {
 
     # Security Headers
@@ -19,12 +24,14 @@
 
     # 1. API
     handle_path /api/* {
+        import no_robots
         reverse_proxy api:8000
     }
 
     # 2. Maputnik style editor
     # Route /editor/* with path stripping
     handle_path /editor/* {
+        import no_robots
         reverse_proxy maputnik:8000
     }
     # Route Maputnik assets (absolute paths in the HTML)

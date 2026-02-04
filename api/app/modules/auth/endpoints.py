@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.messages import MessageService
+from app.core.rate_limit import limiter
 from app.modules.auth.schemas import Token
 from app.modules.auth.services.auth_service import AuthServiceDep
 from app.modules.users.schemas import UserCreate, UserDetail
@@ -12,13 +13,16 @@ authRouter = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @authRouter.post("/register", response_model=UserDetail)
-async def register(user: UserCreate, service: AuthServiceDep):
+@limiter.limit("5/minute")
+async def register(request: Request, user: UserCreate, service: AuthServiceDep):
     """Register a new user."""
     return await service.register(user)
 
 
 @authRouter.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     service: AuthServiceDep,
     response: Response,

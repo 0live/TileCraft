@@ -2,6 +2,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -9,6 +12,7 @@ from app.core.config import get_settings
 from app.core.database import sessionmanager
 from app.core.exceptions.handlers import add_all_exception_handlers
 from app.core.messages import MessageService
+from app.core.rate_limit import limiter
 from app.modules.atlases.endpoints import atlasesRouter
 from app.modules.auth.endpoints import authRouter
 from app.modules.maps.endpoints import mapsRouter
@@ -32,7 +36,12 @@ app = FastAPI(
     root_path="/api",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 add_all_exception_handlers(app)
+
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     SessionMiddleware,

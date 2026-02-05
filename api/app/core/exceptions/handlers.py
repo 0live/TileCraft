@@ -74,14 +74,21 @@ async def domain_exception_handler(request: Request, exc: DomainException):
 async def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ):
-    logger.info("Validation error", extra={"errors": exc.errors()})
+    errors = exc.errors()
+    # Remove 'ctx' and 'url' from errors as they may contain non-serializable objects (like Exceptions)
+    # or internal URLs that shouldn't be exposed/serialized blindly.
+    for error in errors:
+        error.pop("ctx", None)
+        error.pop("url", None)
+
+    logger.info("Validation error", extra={"errors": errors})
     # Transform Pydantic errors to our standard format
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "detail": "Validation error",
             "key": "VALIDATION_ERROR",
-            "params": {"errors": exc.errors()},
+            "params": {"errors": errors},
         },
     )
 

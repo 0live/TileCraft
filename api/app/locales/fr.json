@@ -64,5 +64,8 @@
     "verification_greeting": "Bienvenue sur Canopy !",
     "verification_instruction": "Veuillez vérifier votre compte en cliquant sur le lien ci-dessous :",
     "verification_ignore": "Si vous n'avez pas créé de compte, veuillez ignorer cet email."
+  },
+  "validation": {
+    "password_too_short": "Le mot de passe doit contenir au moins {length} caractères."
   }
 }

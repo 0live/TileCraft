@@ -66,6 +66,7 @@ app.add_middleware(
 )
 
 
+# Health check endpoint for Docker healthcheck.
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint for Docker healthcheck."""

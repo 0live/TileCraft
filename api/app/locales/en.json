@@ -8,7 +8,16 @@
   "auth": {
     "failed": "Authentication failed.",
     "invalid_credentials": "Could not validate credentials.",
-    "user_not_found": "Permission denied, you must be logged in."
+    "refresh_token_missing": "Refresh token is missing.",
+    "user_not_found": "Permission denied, you must be logged in.",
+    "account_not_verified": "Please verify your email address before accessing this resource.",
+    "logout_success": "Logged out successfully",
+    "verification_success": "Account verified successfully",
+    "google_disabled": "Google authentication is disabled.",
+    "registration_disabled": "Self-registration is disabled.",
+    "google_keys_missing": "Google SSO keys are missing.",
+    "google_config_error": "Google OAuth configuration failed.",
+    "google_validation_failed": "Google OAuth data parsing failed."
   },
   "atlas": {
     "not_found": "Atlas not found.",
@@ -48,5 +57,20 @@
     "role_permission_denied": "You don't have permission to change roles.",
     "team_permission_denied": "You don't have permission to change teams.",
     "deleted_success": "User deleted successfully."
+  },
+  "config": {
+    "site_address_missing": "SITE_ADDRESS must be set in production mode or when not in 'dev' environment.",
+    "cors_origins_invalid_format": "CORS_ORIGINS must be a valid JSON list of strings.",
+    "insecure_secret_key": "You must set a secure PRIVATE_KEY in production. Do not use the default."
+  },
+  "email": {
+    "send_failed": "Failed to send email. Please try again later.",
+    "verification_subject": "Verify your Canopy account",
+    "verification_greeting": "Welcome to Canopy!",
+    "verification_instruction": "Please verify your account by clicking the link below:",
+    "verification_ignore": "If you did not create an account, please ignore this email."
+  },
+  "validation": {
+    "password_too_short": "Password must be at least {length} characters long."
   }
 }

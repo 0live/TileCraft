@@ -22,6 +22,8 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     email: EmailStr = Field(unique=True, index=True)
     hashed_password: str
+    is_verified: bool = Field(default=False)
+    verification_token: Optional[str] = Field(default=None)
     roles: List[UserRole] = Field(sa_column=Column(ARRAY(SAEnum(UserRole))))
     teams: List["Team"] = Relationship(
         back_populates="users",

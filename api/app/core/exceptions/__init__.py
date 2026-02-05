@@ -35,8 +35,10 @@ class EntityNotFoundException(DomainException):
 class PermissionDeniedException(DomainException):
     """Exception raised when a user does not have permission."""
 
-    def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(key="permission.denied", params=params)
+    def __init__(
+        self, key: str = "permission.denied", params: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(key=key, params=params)
 
 
 class AuthenticationException(DomainException):
@@ -48,8 +50,31 @@ class AuthenticationException(DomainException):
         super().__init__(key=key, params=params)
 
 
+class SecurityException(APIException):
+    """Exception raised for security configuration errors."""
+
+    def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
+        super().__init__(key=key, params=params)
+
+
 class DuplicateEntityException(DomainException):
     """Exception raised when an entity already exists."""
+
+    def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
+        super().__init__(key=key, params=params)
+
+
+class EmailSendException(APIException):
+    """Exception raised when email sending fails."""
+
+    def __init__(
+        self, key: str = "email.send_failed", params: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(key=key, params=params)
+
+
+class ExternalServiceException(APIException):
+    """Exception raised when an upstream external service fails."""
 
     def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
         super().__init__(key=key, params=params)

@@ -14,8 +14,8 @@ from app.modules.users.service import UserService
 class TestUserService:
     @pytest.fixture
     def mock_repo(self):
-        repo = Mock()
-        repo.session = AsyncMock()  # Mock session for commit
+        repo = AsyncMock()
+        repo.session = AsyncMock()
         return repo
 
     @pytest.fixture
@@ -160,3 +160,212 @@ class TestUserService:
             await service.delete_user(1, admin_user)
 
         assert exc.value.key == "user.not_found"
+
+    # =========================================================================
+    # Create User Tests
+    # =========================================================================
+
+    @pytest.mark.asyncio
+    async def test_create_user_success(self, service, mock_repo):
+        """Test successful user creation."""
+        from app.modules.users.schemas import UserCreate
+
+        user_create = UserCreate(
+            username="newuser", email="new@test.com", password="password123"
+        )
+        created_user = Mock(
+            id=1,
+            username="newuser",
+            email="new@test.com",
+            roles=[UserRole.USER],
+            teams=[],
+            is_verified=False,
+        )
+        # Mock all methods called by create_user
+        mock_repo.validate_unique_credentials = AsyncMock(return_value=None)
+        mock_repo.create = AsyncMock(return_value=created_user)
+        mock_repo.get = AsyncMock(return_value=created_user)
+
+        result = await service.create_user(user_create, is_verified=False)
+
+        assert result.username == "newuser"
+        mock_repo.create.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_user_duplicate_email(self, service, mock_repo):
+        """Test user creation with duplicate email raises exception."""
+        from app.core.exceptions import DuplicateEntityException
+        from app.modules.users.schemas import UserCreate
+
+        user_create = UserCreate(
+            username="newuser", email="existing@test.com", password="password123"
+        )
+        # Raise duplicate exception from validation step
+        mock_repo.validate_unique_credentials = AsyncMock(
+            side_effect=DuplicateEntityException(
+                key="user.email_exists", params={"email": "existing@test.com"}
+            )
+        )
+
+        with pytest.raises(DuplicateEntityException) as exc:
+            await service.create_user(user_create, is_verified=False)
+
+        assert exc.value.key == "user.email_exists"
+
+    # =========================================================================
+    # Get User Internal Tests
+    # =========================================================================
+
+    @pytest.mark.asyncio
+    async def test_get_user_internal_success(self, service, mock_repo):
+        """Test get_user_internal returns user without permission check."""
+        user = Mock(
+            id=1,
+            username="internal",
+            email="internal@test.com",
+            roles=[UserRole.USER],
+            teams=[],
+            is_verified=True,
+        )
+        mock_repo.get_or_raise = AsyncMock(return_value=user)
+
+        result = await service.get_user_internal(1)
+
+        assert result.id == 1
+        mock_repo.get_or_raise.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_user_internal_not_found(self, service, mock_repo):
+        """Test get_user_internal raises exception for missing user."""
+        mock_repo.get_or_raise = AsyncMock(
+            side_effect=EntityNotFoundException(
+                entity="User", key="user.not_found", params={"id": 999}
+            )
+        )
+
+        with pytest.raises(EntityNotFoundException) as exc:
+            await service.get_user_internal(999)
+
+        assert exc.value.key == "user.not_found"
+
+    # =========================================================================
+    # Verify User Tests
+    # =========================================================================
+
+    @pytest.mark.asyncio
+    async def test_verify_user_success(self, service, mock_repo):
+        """Test successful user verification."""
+        user = Mock(is_verified=False, verification_token="valid_token")
+        mock_repo.get_by_verification_token = AsyncMock(return_value=user)
+        mock_repo.session.commit = AsyncMock()
+
+        result = await service.verify_user("valid_token")
+
+        assert result is True
+        assert user.is_verified is True
+        assert user.verification_token is None
+
+    @pytest.mark.asyncio
+    async def test_verify_user_invalid_token(self, service, mock_repo):
+        """Test verification with invalid token returns False."""
+        mock_repo.get_by_verification_token = AsyncMock(return_value=None)
+
+        result = await service.verify_user("invalid_token")
+
+        assert result is False
+
+    # =========================================================================
+    # Authenticate User Tests
+    # =========================================================================
+
+    @pytest.mark.asyncio
+    async def test_authenticate_user_success(self, service, mock_repo):
+        """Test successful authentication."""
+        from app.core.hashing import hash_password
+
+        hashed = hash_password("correctpassword")
+        user = Mock(
+            id=1,
+            username="authuser",
+            email="auth@test.com",
+            hashed_password=hashed,
+            roles=[UserRole.USER],
+        )
+        mock_repo.get_by_username = AsyncMock(return_value=user)
+
+        result = await service.authenticate_user("authuser", "correctpassword")
+
+        assert result.username == "authuser"
+
+    @pytest.mark.asyncio
+    async def test_authenticate_user_invalid_password(self, service, mock_repo):
+        """Test authentication with wrong password raises exception."""
+        from app.core.exceptions import AuthenticationException
+        from app.core.hashing import hash_password
+
+        hashed = hash_password("correctpassword")
+        user = Mock(hashed_password=hashed)
+        mock_repo.get_by_username = AsyncMock(return_value=user)
+
+        with pytest.raises(AuthenticationException) as exc:
+            await service.authenticate_user("authuser", "wrongpassword")
+
+        assert exc.value.key == "auth.failed"
+
+    @pytest.mark.asyncio
+    async def test_authenticate_user_not_found(self, service, mock_repo):
+        """Test authentication for non-existent user raises exception."""
+        from app.core.exceptions import AuthenticationException
+
+        mock_repo.get_by_username = AsyncMock(return_value=None)
+
+        with pytest.raises(AuthenticationException) as exc:
+            await service.authenticate_user("ghost", "anypassword")
+
+        assert exc.value.key == "auth.failed"
+
+    # =========================================================================
+    # Get or Create Google User Tests
+    # =========================================================================
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_google_user_existing(self, service, mock_repo):
+        """Test get_or_create returns existing user."""
+        existing_user = Mock(
+            id=1,
+            username="googleuser",
+            email="google@test.com",
+            roles=[UserRole.USER],
+            teams=[],
+            is_verified=True,
+        )
+        mock_repo.get_by_email = AsyncMock(return_value=existing_user)
+
+        user_info = {"email": "google@test.com", "name": "Google User"}
+        result = await service.get_or_create_google_user(user_info)
+
+        assert result.id == 1
+        mock_repo.create.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_google_user_new(self, service, mock_repo):
+        """Test get_or_create creates new user for Google OAuth."""
+        mock_repo.get_by_email = AsyncMock(return_value=None)
+        new_user = Mock(
+            id=2,
+            username="newgoogleuser",
+            email="newgoogle@test.com",
+            roles=[UserRole.USER],
+            teams=[],
+            is_verified=True,
+        )
+        # Mock all methods called by create_user
+        mock_repo.validate_unique_credentials = AsyncMock(return_value=None)
+        mock_repo.create = AsyncMock(return_value=new_user)
+        mock_repo.get = AsyncMock(return_value=new_user)
+
+        user_info = {"email": "newgoogle@test.com", "name": "New Google User"}
+        result = await service.get_or_create_google_user(user_info)
+
+        assert result.id == 2
+        mock_repo.create.assert_called_once()

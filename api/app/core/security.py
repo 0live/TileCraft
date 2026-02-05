@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-import bcrypt
 import jwt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -11,21 +10,7 @@ from app.core.config import Settings
 from app.core.exceptions import AuthenticationException
 from app.modules.auth.schemas import Token
 from app.modules.users.schemas import UserDetail
-
-
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    pwd_bytes = password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode("utf-8")
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    password_bytes = plain_password.encode("utf-8")
-    hashed_bytes = hashed_password.encode("utf-8")
-    return bcrypt.checkpw(password_bytes, hashed_bytes)
+from app.modules.users.service import UserServiceDep
 
 
 def create_access_token(
@@ -35,7 +20,7 @@ def create_access_token(
 ) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
-    expire = datetime.now() + (
+    expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire})
@@ -66,8 +51,6 @@ def get_token(user: UserDetail, settings: Settings) -> Token:
 # Auth Dependencies
 # =============================================================================
 
-from app.modules.users.service import UserServiceDep
-
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
@@ -85,4 +68,8 @@ async def get_current_user(
     user = await service.get_by_username(username, with_relations=True)
     if user is None:
         raise AuthenticationException(params={"detail": "auth.user_not_found"})
+
+    if not user.is_verified:
+        raise AuthenticationException(params={"detail": "auth.account_not_verified"})
+
     return UserDetail.model_validate(user)

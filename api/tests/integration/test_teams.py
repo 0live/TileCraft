@@ -139,7 +139,9 @@ async def test_create_duplicate_team(client: AsyncClient, auth_token_factory):
 
 
 @pytest.mark.asyncio
-async def test_team_membership_management(client: AsyncClient, auth_token_factory):
+async def test_team_membership_management(
+    client: AsyncClient, auth_token_factory, register_and_verify_user
+):
     """
     Verify that a Team Manager can add and remove users from a team.
     """
@@ -148,13 +150,13 @@ async def test_team_membership_management(client: AsyncClient, auth_token_factor
     admin_token = await auth_token_factory("admin", "admin")
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
-    # Create manager user
+    # Create and verify manager user
     manager_data = {
         "username": "manager",
         "email": "manager@test.com",
         "password": "password",
     }
-    await client.post("/auth/register", json=manager_data)
+    await register_and_verify_user(manager_data)
 
     # Get manager ID (we need to find it, or just use get_by_username if we had it, but we can filter from list)
     # Simpler: just use admin to update roles. We need ID.

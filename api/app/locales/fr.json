@@ -8,7 +8,16 @@
   "auth": {
     "failed": "Authentification échouée.",
     "invalid_credentials": "Impossible de valider les identifiants.",
-    "user_not_found": "Opération non autorisée, vous devez être connecté."
+    "refresh_token_missing": "Le jeton de rafraîchissement est manquant.",
+    "user_not_found": "Opération non autorisée, vous devez être connecté.",
+    "account_not_verified": "Veuillez vérifier votre adresse email avant d'accéder à cette ressource.",
+    "logout_success": "Déconnexion réussie.",
+    "verification_success": "Compte vérifié avec succès.",
+    "google_disabled": "L'authentification Google est désactivée.",
+    "registration_disabled": "L'inscription est désactivée.",
+    "google_keys_missing": "Les clés Google SSO sont manquantes.",
+    "google_config_error": "La configuration Google OAuth a échoué.",
+    "google_validation_failed": "L'analyse des données Google OAuth a échoué."
   },
   "atlas": {
     "not_found": "Atlas non trouvé.",
@@ -48,5 +57,20 @@
     "role_permission_denied": "Vous n'avez pas la permission de changer les rôles.",
     "team_permission_denied": "Vous n'avez pas la permission de changer les équipes.",
     "deleted_success": "Utilisateur supprimé avec succès."
+  },
+  "config": {
+    "site_address_missing": "SITE_ADDRESS doit être défini en mode production ou hors de l'environnement 'dev'.",
+    "cors_origins_invalid_format": "CORS_ORIGINS doit être une liste JSON valide de chaînes de caractères.",
+    "insecure_secret_key": "Vous devez définir une PRIVATE_KEY sécurisée en production. N'utilisez pas la valeur par défaut."
+  },
+  "email": {
+    "send_failed": "Échec de l'envoi de l'email. Veuillez réessayer plus tard.",
+    "verification_subject": "Vérifiez votre compte Canopy",
+    "verification_greeting": "Bienvenue sur Canopy !",
+    "verification_instruction": "Veuillez vérifier votre compte en cliquant sur le lien ci-dessous :",
+    "verification_ignore": "Si vous n'avez pas créé de compte, veuillez ignorer cet email."
+  },
+  "validation": {
+    "password_too_short": "Le mot de passe doit contenir au moins {length} caractères."
   }
 }

@@ -12,7 +12,8 @@
     "user_not_found": "Permission denied, you must be logged in.",
     "account_not_verified": "Please verify your email address before accessing this resource.",
     "logout_success": "Logged out successfully",
-    "verification_success": "Account verified successfully"
+    "verification_success": "Account verified successfully",
+    "google_disabled": "Google authentication is disabled."
   },
   "atlas": {
     "not_found": "Atlas not found.",

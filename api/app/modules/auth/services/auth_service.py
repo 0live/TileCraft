@@ -3,11 +3,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import Depends, Request, Response
+from fastapi import Depends, HTTPException, Request, Response
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
 from app.core.exceptions import AuthenticationException
+from app.core.messages import MessageService
 from app.core.security import get_token
 from app.modules.auth.models import RefreshToken
 from app.modules.auth.repository import AuthRepository
@@ -152,12 +153,22 @@ class AuthService:
 
     async def google_login(self, request: Request) -> dict:
         """Initiate Google OAuth flow."""
+        if not self.settings.activate_google_auth:
+            raise HTTPException(
+                status_code=404,
+                detail=MessageService.get_message("auth.google_disabled"),
+            )
         return await GoogleAuthService.login(request)
 
     async def google_callback(
         self, request: Request, response: Response
     ) -> AuthResponse:
         """Handle Google OAuth callback."""
+        if not self.settings.activate_google_auth:
+            raise HTTPException(
+                status_code=404,
+                detail=MessageService.get_message("auth.google_disabled"),
+            )
         user_info = await GoogleAuthService.callback(request)
 
         user = await self.user_service.get_or_create_google_user(user_info)

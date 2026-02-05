@@ -67,6 +67,7 @@ export const MaputnikEmbed: React.FC<MaputnikEmbedProps> = ({ styleUrl, onBack }
         onLoad={() => {
             if (iframeRef.current && iframeRef.current.contentWindow) {
                 try {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const iframeWindow = iframeRef.current.contentWindow as any;
                     const iframeDocument = iframeRef.current.contentDocument;
 
@@ -120,7 +121,7 @@ export const MaputnikEmbed: React.FC<MaputnikEmbedProps> = ({ styleUrl, onBack }
                         tryMount();
 
                         // And watch for changes in the body (in case Maputnik re-renders the toolbar)
-                        const observer = new MutationObserver((mutations) => {
+                        const observer = new MutationObserver(() => {
                            tryMount();
                         });
 

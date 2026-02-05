@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, Request, Response
 
 from app.core.config import Settings, get_settings
 from app.core.database import SessionDep
-from app.core.exceptions import AuthenticationException
+from app.core.exceptions import AuthenticationException, PermissionDeniedException
 from app.core.messages import MessageService
 from app.core.security import get_token
 from app.modules.auth.models import RefreshToken
@@ -53,11 +53,17 @@ class AuthService:
 
     async def register(self, user: UserCreate) -> UserDetail:
         """Register a new user and send verification email."""
+        if not self.settings.allow_self_registration:
+            raise PermissionDeniedException(key="auth.registration_disabled")
+
         verification_token = secrets.token_urlsafe(32)
         new_user = await self.user_service.create_user(
             user, is_verified=False, verification_token=verification_token
         )
-        await self.email_service.send_verification_email(user.email, verification_token)
+        if self.settings.smtp_host:
+            await self.email_service.send_verification_email(
+                user.email, verification_token
+            )
         return new_user
 
     def set_refresh_cookie(self, response: Response, token: str) -> None:

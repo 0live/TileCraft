@@ -35,8 +35,10 @@ class EntityNotFoundException(DomainException):
 class PermissionDeniedException(DomainException):
     """Exception raised when a user does not have permission."""
 
-    def __init__(self, params: Optional[Dict[str, Any]] = None):
-        super().__init__(key="permission.denied", params=params)
+    def __init__(
+        self, key: str = "permission.denied", params: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(key=key, params=params)
 
 
 class AuthenticationException(DomainException):

@@ -21,6 +21,7 @@ class EmailService:
         """
         Send a verification email to the user with a clickable link.
         """
+        # Site address defaults to localhost:3000 which is the frontend
         site_address = self.settings.site_address or "http://localhost:3000"
         verification_link = f"{site_address.rstrip('/')}/verify?token={token}"
 
@@ -46,15 +47,19 @@ class EmailService:
         message.set_content(body)
 
         try:
-            await aiosmtplib.send(
-                message,
-                hostname=self.settings.smtp_host,
-                port=self.settings.smtp_port,
-                username=self.settings.smtp_user,
-                password=self.settings.smtp_password,
-                use_tls=self.settings.smtp_use_tls,
-                start_tls=self.settings.smtp_starttls,
-            )
+            # Only include credentials if they are provided
+            kwargs = {
+                "hostname": self.settings.smtp_host,
+                "port": self.settings.smtp_port,
+                "use_tls": self.settings.smtp_use_tls,
+                "start_tls": self.settings.smtp_starttls,
+            }
+            if self.settings.smtp_user:
+                kwargs["username"] = self.settings.smtp_user
+            if self.settings.smtp_password:
+                kwargs["password"] = self.settings.smtp_password
+
+            await aiosmtplib.send(message, **kwargs)
             logger.info(f"Email sent successfully to {to_email}")
         except aiosmtplib.SMTPException as e:
             logger.error(f"Failed to send email to {to_email}: {e}")

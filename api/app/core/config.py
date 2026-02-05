@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
 
+    # Application Features
+    allow_self_registration: bool = True
+
     # Email / SMTP settings
     smtp_host: str = "localhost"
     smtp_port: int = 1025

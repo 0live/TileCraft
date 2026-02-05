@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.core.security import get_current_user
 from app.modules.users.schemas import (
+    UserCreate,
     UserDetail,
     UserSummary,
     UserUpdate,
@@ -11,6 +12,16 @@ from app.modules.users.schemas import (
 from app.modules.users.service import UserServiceDep
 
 userRouter = APIRouter(prefix="/users", tags=["Users"])
+
+
+@userRouter.post("", response_model=UserDetail)
+async def create_user_as_admin(
+    user: UserCreate,
+    service: UserServiceDep,
+    current_user: UserDetail = Depends(get_current_user),
+):
+    """Create a new user (Admin only)."""
+    return await service.create_user_by_admin(user, current_user)
 
 
 @userRouter.get("", response_model=List[UserSummary])

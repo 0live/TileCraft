@@ -35,3 +35,4 @@ services:
       - "8025:8025" # Web UI
     networks:
       - backend
+      - frontend

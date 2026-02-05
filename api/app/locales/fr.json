@@ -13,7 +13,8 @@
     "account_not_verified": "Veuillez vérifier votre adresse email avant d'accéder à cette ressource.",
     "logout_success": "Déconnexion réussie.",
     "verification_success": "Compte vérifié avec succès.",
-    "google_disabled": "L'authentification Google est désactivée."
+    "google_disabled": "L'authentification Google est désactivée.",
+    "registration_disabled": "L'inscription est désactivée."
   },
   "atlas": {
     "not_found": "Atlas non trouvé.",

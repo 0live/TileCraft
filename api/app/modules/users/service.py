@@ -86,19 +86,31 @@ class UserService:
         user: UserCreate,
         is_verified: bool = False,
         verification_token: Optional[str] = None,
+        force_roles: Optional[list[UserRole]] = None,
     ) -> UserDetail:
         """
         Create a new user with validated credentials.
         """
         await self.repository.validate_unique_credentials(user.email, user.username)
         user_data = self._prepare_user_creation_data(
-            user, is_verified, verification_token
+            user, is_verified, verification_token, force_roles
         )
         new_user = await self.repository.create(user_data)
         await self.repository.session.commit()
         return await self.repository.get(
             new_user.id, options=[selectinload(User.teams).selectinload(Team.users)]
         )
+
+    async def create_user_by_admin(
+        self, user: UserCreate, current_user: UserDetail
+    ) -> UserDetail:
+        """Create a user directly (Admin only). User is automatically verified."""
+        if not has_any_role(current_user, [UserRole.ADMIN]):
+            raise PermissionDeniedException(
+                params={"detail": "user.create_permission_denied"}
+            )
+
+        return await self.create_user(user, is_verified=True, force_roles=user.roles)
 
     async def get_or_create_google_user(self, user_info: dict) -> UserDetail:
         """Get existing user by email or create a new one for Google OAuth."""
@@ -121,11 +133,12 @@ class UserService:
         user: UserCreate,
         is_verified: bool,
         verification_token: Optional[str],
+        force_roles: Optional[list[UserRole]] = None,
     ) -> dict[str, Any]:
         hashed_pw = hash_password(user.password)
         user_data = user.model_dump(exclude={"password", "roles", "teams"})
         user_data["hashed_password"] = hashed_pw
-        user_data["roles"] = [UserRole.USER]
+        user_data["roles"] = force_roles if force_roles else [UserRole.USER]
         user_data["is_verified"] = is_verified
 
         if verification_token:

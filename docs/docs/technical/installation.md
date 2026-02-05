@@ -68,9 +68,21 @@ ENV=prod
 SITE_ADDRESS=maps.mycompany.com
 ```
 
+#### Registration
+
+- `ALLOW_SELF_REGISTRATION`: Set to `True` (default) to allow users to sign up themselves. Set to `False` for admin-only user creation.
+
+```bash
+ALLOW_SELF_REGISTRATION=True
+```
+
 #### Email / SMTP
 
-Configure your SMTP provider for email verification:
+Configure your SMTP provider for email verification.
+
+> [!NOTE]
+> SMTP configuration is **required** if `ALLOW_SELF_REGISTRATION` is `True` (default), as users must verify their email address.
+> If `ALLOW_SELF_REGISTRATION` is `False`, admins create pre-verified users, so SMTP is optional (but recommended for notifications).
 
 - `SMTP_HOST`: SMTP server hostname (e.g., `smtp.sendgrid.net`)
 - `SMTP_PORT`: SMTP port (typically `587` for STARTTLS or `465` for TLS)
@@ -140,6 +152,9 @@ LOCALE=fr
 #### Google SSO
 
 To enable Google Sign-In:
+
+> [!IMPORTANT]
+> Google Sign-In currently allows account creation. Therefore, it requires `ALLOW_SELF_REGISTRATION` to be set to `True`.
 
 - `ACTIVATE_GOOGLE_AUTH`: Set to `True` to enable
 - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID

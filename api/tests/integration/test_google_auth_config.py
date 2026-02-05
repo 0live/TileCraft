@@ -23,7 +23,7 @@ async def test_google_login_disabled(client: AsyncClient):
         # Before the fix, it enters the service and hits "Google OAuth configuration failed" (500)
         # or just tries to redirect if oauth keys are somehow present but flag is false (unlikely config combo but possible)
 
-        assert response.status_code == 404
+        assert response.status_code == 403
         data = response.json()
         assert data["detail"] == "Google authentication is disabled."
 
@@ -34,6 +34,6 @@ async def test_google_callback_disabled(client: AsyncClient):
     settings = get_settings()
     with patch.object(settings, "activate_google_auth", False):
         response = await client.get("/auth/google/callback")
-        assert response.status_code == 404
+        assert response.status_code == 403
         data = response.json()
         assert data["detail"] == "Google authentication is disabled."

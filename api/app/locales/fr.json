@@ -14,7 +14,10 @@
     "logout_success": "Déconnexion réussie.",
     "verification_success": "Compte vérifié avec succès.",
     "google_disabled": "L'authentification Google est désactivée.",
-    "registration_disabled": "L'inscription est désactivée."
+    "registration_disabled": "L'inscription est désactivée.",
+    "google_keys_missing": "Les clés Google SSO sont manquantes.",
+    "google_config_error": "La configuration Google OAuth a échoué.",
+    "google_validation_failed": "L'analyse des données Google OAuth a échoué."
   },
   "atlas": {
     "not_found": "Atlas non trouvé.",

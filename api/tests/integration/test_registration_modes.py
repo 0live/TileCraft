@@ -95,3 +95,25 @@ async def test_smtp_configuration_resilience(
             )
             assert response.status_code == 200
             assert response.json()["is_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_google_auth_restricted_when_registration_disabled(
+    client: AsyncClient, settings
+):
+    """
+    Test that Google Auth endpoints return 403 when registration is disabled.
+    """
+    with (
+        patch.object(settings, "allow_self_registration", False),
+        patch.object(settings, "activate_google_auth", True),
+    ):
+        # Test Login init
+        response = await client.get("/auth/google")
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Self-registration is disabled."
+
+        # Test Callback
+        response = await client.get("/auth/google/callback?code=fake_code")
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Self-registration is disabled."

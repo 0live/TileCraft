@@ -14,7 +14,10 @@
     "logout_success": "Logged out successfully",
     "verification_success": "Account verified successfully",
     "google_disabled": "Google authentication is disabled.",
-    "registration_disabled": "Self-registration is disabled."
+    "registration_disabled": "Self-registration is disabled.",
+    "google_keys_missing": "Google SSO keys are missing.",
+    "google_config_error": "Google OAuth configuration failed.",
+    "google_validation_failed": "Google OAuth data parsing failed."
   },
   "atlas": {
     "not_found": "Atlas not found.",

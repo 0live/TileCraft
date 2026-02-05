@@ -71,3 +71,10 @@ class EmailSendException(APIException):
         self, key: str = "email.send_failed", params: Optional[Dict[str, Any]] = None
     ):
         super().__init__(key=key, params=params)
+
+
+class ExternalServiceException(APIException):
+    """Exception raised when an upstream external service fails."""
+
+    def __init__(self, key: str, params: Optional[Dict[str, Any]] = None):
+        super().__init__(key=key, params=params)

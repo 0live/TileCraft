@@ -8,6 +8,7 @@ from app.core.exceptions import (
     DomainException,
     DuplicateEntityException,
     EntityNotFoundException,
+    ExternalServiceException,
     PermissionDeniedException,
     SecurityException,
 )
@@ -112,6 +113,17 @@ async def security_exception_handler(request: Request, exc: SecurityException):
     )
 
 
+async def external_service_exception_handler(
+    request: Request, exc: "ExternalServiceException"
+):
+    logger.error(f"External Service Error: {exc.key}", extra={"params": exc.params})
+    msg = MessageService.get_message(exc.key, **exc.params)
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": msg, "key": exc.key, "params": exc.params},
+    )
+
+
 def add_all_exception_handlers(app):
     app.add_exception_handler(
         DuplicateEntityException, duplicate_entity_exception_handler
@@ -121,6 +133,9 @@ def add_all_exception_handlers(app):
     app.add_exception_handler(AuthenticationException, authentication_exception_handler)
     app.add_exception_handler(DomainException, domain_exception_handler)
     app.add_exception_handler(SecurityException, security_exception_handler)
+    app.add_exception_handler(
+        ExternalServiceException, external_service_exception_handler
+    )
     app.add_exception_handler(
         RequestValidationError, request_validation_exception_handler
     )

@@ -154,7 +154,7 @@ async def test_team_membership_management(
     manager_data = {
         "username": "manager",
         "email": "manager@test.com",
-        "password": "password",
+        "password": "password12345",
     }
     await register_and_verify_user(manager_data)
 

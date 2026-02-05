@@ -89,7 +89,7 @@ async def test_delete_user(client: AsyncClient, auth_token_factory, existing_use
     user_to_delete = {
         "username": "todelete",
         "email": "todelete@example.com",
-        "password": "password",
+        "password": "password12345",
     }
     await client.post("/auth/register", json=user_to_delete)
 

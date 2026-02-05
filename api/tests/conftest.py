@@ -47,6 +47,7 @@ def settings_fixture(postgres_container: PostgresContainer):
         database_url=postgres_container.get_connection_url()
         .replace("postgresql+psycopg2://", "postgresql+psycopg://")
         .replace("postgresql://", "postgresql+psycopg://"),
+        allow_self_registration=True,
     )
 
 

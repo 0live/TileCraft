@@ -3,3 +3,4 @@ docker/postgis/data
 local.mk
 .vscode/
 .agent/
+/frontend/node_modules/

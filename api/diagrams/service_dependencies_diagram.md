@@ -6,6 +6,7 @@ This diagram shows the dependencies between service layers across modules.
 graph TB
     subgraph "Module Auth"
         AuthService["AuthService"]
+        AuthRepository["AuthRepository"]
         GoogleAuthService["GoogleAuthService"]
     end
 
@@ -29,8 +30,9 @@ graph TB
         MapRepository["MapRepository"]
     end
 
-    %% Service to Service dependencies
-    AuthService -->|"injects"| UserService
+    %% Auth module dependencies
+    AuthService --> AuthRepository
+    AuthService -->|"authenticate_user<br/>get_user_internal<br/>get_or_create_google_user"| UserService
     AuthService -->|"delegates OAuth"| GoogleAuthService
 
     %% Service to Repository (same module)
@@ -47,7 +49,7 @@ graph TB
     classDef repository fill:#2196F3,stroke:#1565C0,color:white
 
     class AuthService,UserService,TeamService,AtlasService,MapService,GoogleAuthService service
-    class UserRepository,TeamRepository,AtlasRepository,MapRepository repository
+    class AuthRepository,UserRepository,TeamRepository,AtlasRepository,MapRepository repository
 ```
 
 ## Dependency Matrix

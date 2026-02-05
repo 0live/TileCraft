@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.modules.users.models import User  # noqa
 from app.modules.teams.models import Team, UserTeamLink  # noqa
 from app.modules.atlases.models import Atlas, AtlasTeamLink  # noqa
+from app.modules.auth.models import RefreshToken  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

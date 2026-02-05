@@ -54,11 +54,11 @@ async def test_get_user_dynamic_id(
 
 @pytest.mark.asyncio
 async def test_update_user_role_restriction(
-    client: AsyncClient, auth_token_factory, user_data
+    client: AsyncClient, auth_token_factory, user_data, register_and_verify_user
 ):
     """Verifies that a user cannot upgrade their own roles."""
-    # Register via /auth/register
-    await client.post("/auth/register", json=user_data)
+    # Register and verify user
+    await register_and_verify_user(user_data)
     token = await auth_token_factory(
         username=user_data["username"], password=user_data["password"]
     )
@@ -116,10 +116,12 @@ async def test_delete_user(client: AsyncClient, auth_token_factory, existing_use
 
 
 @pytest.mark.asyncio
-async def test_update_user_self(client: AsyncClient, auth_token_factory, user_data):
+async def test_update_user_self(
+    client: AsyncClient, auth_token_factory, user_data, register_and_verify_user
+):
     """Verifies that a user can update their own username and email."""
-    # Register via /auth/register
-    await client.post("/auth/register", json=user_data)
+    # Register and verify user
+    await register_and_verify_user(user_data)
     token = await auth_token_factory(
         username=user_data["username"], password=user_data["password"]
     )
@@ -161,20 +163,20 @@ async def test_update_user_self(client: AsyncClient, auth_token_factory, user_da
 
 @pytest.mark.asyncio
 async def test_update_user_duplicate_username(
-    client: AsyncClient, auth_token_factory, user_data
+    client: AsyncClient, auth_token_factory, user_data, register_and_verify_user
 ):
     """Verifies that updating a user with an existing username returns 409 Conflict."""
-    # 1. Register User 1 (The victim of duplication)
+    # 1. Register and verify User 1 (The victim of duplication)
     user1_data = user_data.copy()
     user1_data["username"] = "user1"
     user1_data["email"] = "user1@example.com"
-    await client.post("/auth/register", json=user1_data)
+    await register_and_verify_user(user1_data)
 
-    # 2. Register User 2 (The one who will try to steal the username)
+    # 2. Register and verify User 2 (The one who will try to steal the username)
     user2_data = user_data.copy()
     user2_data["username"] = "user2"
     user2_data["email"] = "user2@example.com"
-    await client.post("/auth/register", json=user2_data)
+    await register_and_verify_user(user2_data)
 
     # 3. Login as User 2
     token = await auth_token_factory(

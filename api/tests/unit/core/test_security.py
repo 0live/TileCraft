@@ -3,13 +3,12 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationException
+from app.core.hashing import hash_password, verify_password
 from app.core.security import (
     create_access_token,
     decode_token,
     get_current_user,
     get_token,
-    hash_password,
-    verify_password,
 )
 from app.modules.users.schemas import UserDetail
 
@@ -67,6 +66,7 @@ class TestSecurity:
                 hashed_password="hash",
                 roles=[],
                 teams=[],
+                is_verified=True,
             )
         )
 

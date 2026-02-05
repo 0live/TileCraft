@@ -171,7 +171,7 @@ class TestUserService:
         from app.modules.users.schemas import UserCreate
 
         user_create = UserCreate(
-            username="newuser", email="new@test.com", password="password123"
+            username="newuser", email="new@test.com", password="password12345"
         )
         created_user = Mock(
             id=1,
@@ -198,7 +198,7 @@ class TestUserService:
         from app.modules.users.schemas import UserCreate
 
         user_create = UserCreate(
-            username="newuser", email="existing@test.com", password="password123"
+            username="newuser", email="existing@test.com", password="password12345"
         )
         # Raise duplicate exception from validation step
         mock_repo.validate_unique_credentials = AsyncMock(

@@ -13,7 +13,9 @@ class MockModel(SQLModel):
 class TestBaseRepository:
     @pytest.fixture
     def mock_session(self):
-        return AsyncMock()
+        session = AsyncMock()
+        session.add = Mock()
+        return session
 
     @pytest.fixture
     def repository(self, mock_session):

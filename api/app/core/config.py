@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     @property
     def allowed_hosts(self) -> List[str]:
         """Derive allowed hosts from SITE_ADDRESS."""
-        if self.env == "dev":
+        if self.env in ["dev", "test"]:
             return ["*"]
 
         if self.site_address:

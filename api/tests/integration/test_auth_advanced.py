@@ -64,7 +64,7 @@ async def test_email_verification_flow(client: AsyncClient, session: AsyncSessio
     register_data = {
         "email": "verify@test.com",
         "username": "verify_user",
-        "password": "password123",
+        "password": "password12345",
     }
     resp_reg = await client.post("/auth/register", json=register_data)
     assert resp_reg.status_code == 200

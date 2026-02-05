@@ -24,6 +24,7 @@ class TestAuthService:
             private_key="test_secret_key",
             refresh_token_expire_days=30,
             access_token_expire_minutes=15,
+            allow_self_registration=True,
         )
 
     @pytest.fixture
@@ -31,11 +32,23 @@ class TestAuthService:
         return AsyncMock()
 
     @pytest.fixture
-    def service(self, mock_repo, mock_user_service, mock_email_service, mock_settings):
+    def mock_google_auth_service(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(
+        self,
+        mock_repo,
+        mock_user_service,
+        mock_email_service,
+        mock_google_auth_service,
+        mock_settings,
+    ):
         return AuthService(
             repository=mock_repo,
             user_service=mock_user_service,
             email_service=mock_email_service,
+            google_auth_service=mock_google_auth_service,
             settings=mock_settings,
         )
 
@@ -67,7 +80,7 @@ class TestAuthService:
     ):
         """Test successful user registration."""
         user_create = UserCreate(
-            username="newuser", email="new@test.com", password="password123"
+            username="newuser", email="new@test.com", password="password12345"
         )
         expected_user = UserDetail(
             id=1,

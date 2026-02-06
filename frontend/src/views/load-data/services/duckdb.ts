@@ -13,6 +13,7 @@ export interface FileMetadata {
     bbox: number[];
     sample: unknown;
     crs?: string;
+    layers?: string[];
 }
 
 const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
@@ -40,22 +41,19 @@ export async function initDuckDB() {
     return db;
 }
 
+const replacer = (_key: string, value: any) => typeof value === 'bigint' ? Number(value) : value;
+
 export async function analyzeFile(file: File): Promise<FileMetadata> {
-    const db = await initDuckDB();
-    const conn = await db.connect();
+    const dbInstance = await initDuckDB();
+    const conn = await dbInstance.connect();
     
     const tableName = `import_${Math.random().toString(36).substring(7)}`;
     const fileName = file.name;
     
+    let tempViewName: string | null = null;
+
     try {
-        await db.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
-        
-        // Detect format and create view
-        // Using ST_Read for geospatial support if spatial extension loads, but for now standard read
-        // duckdb-wasm spatial extension might need explicit loading.
-        // For prototype, we assume Parquet/CSV/JSON or use spatial extension if available.
-        // Wait, standard duckdb-wasm has spatial? Not by default. 
-        // We will try standard loading first.
+        await dbInstance.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
         
         let fileType = 'unknown';
         if (fileName.endsWith('.csv')) fileType = 'csv';
@@ -70,10 +68,16 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
         let crs = 'EPSG:4326'; // Default for GeoJSON
 
         if (fileType === 'json') {
+             console.log(`Loading JSON file: ${file.name}, size: ${file.size}`);
              // Load JSON into a temporary table first to inspect structure
-             await conn.query(`CREATE TABLE raw_json AS SELECT * FROM read_json_auto('${fileName}')`);
+             // Set dynamic max object size: at least 32MB, or 4x file size (upto 2GB cap)
+             const dynamicMaxSize = Math.min(2 * 1024 * 1024 * 1024, Math.max(33554432, file.size * 4));
+             console.log(`Using maximum_object_size: ${dynamicMaxSize}`);
+
+             await conn.query(`CREATE TABLE raw_json AS SELECT * FROM read_json_auto('${fileName}', maximum_object_size=${dynamicMaxSize})`);
              
              // Check if it looks like a FeatureCollection
+             console.log("JSON loaded, describing...");
              const schemaRaw = await conn.query(`DESCRIBE raw_json`);
              const hasFeatures = schemaRaw.toArray().some((c: any) => c.column_name === 'features');
 
@@ -81,6 +85,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  // It's a FeatureCollection.
                  // Step 1: Unnest features into a temp view to inspect structure
                  const tempView = `temp_features_${Math.random().toString(36).substring(7)}`;
+                 tempViewName = tempView;
                  await conn.query(`CREATE VIEW ${tempView} AS SELECT unnest(features) as feature FROM raw_json`);
                  
                  // Step 2: Describe the temp view to see what 'feature' looks like (struct?)
@@ -108,6 +113,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                          // Fallback to raw features array if all else fails
                          console.warn("Could not expand feature, reverting to raw", e2);
                          await conn.query(`DROP VIEW IF EXISTS ${tempView}`);
+                         tempViewName = null; // Already dropped
                          await conn.query(`CREATE VIEW ${tableName} AS SELECT * FROM raw_json`);
                      }
                  }
@@ -125,7 +131,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  // Get Sample
                  const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
                  // Force strict JSON serialization to strip Arrow 'StructRow' wrappers
-                 sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON())));
+                 sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
                  
                  // Get Schema from View
                  const schemaView = await conn.query(`DESCRIBE ${tableName}`);
@@ -152,13 +158,14 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  }
 
              } else {
+                 console.log("Not a FeatureCollection, treating as standard JSON/array");
                  // Plain JSON array or object
                  await conn.query(`CREATE VIEW ${tableName} AS SELECT * FROM raw_json`);
                  const countRes = await conn.query(`SELECT count(*) as c FROM ${tableName}`);
                  rowCount = Number(countRes.toArray()[0].c);
                  
                  const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
-                 sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON())));
+                 sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
                  
                  const schemaView = await conn.query(`DESCRIBE ${tableName}`);
                  columns = schemaView.toArray().map((r: any) => ({ name: r.column_name, type: r.column_type }));
@@ -176,24 +183,33 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
             rowCount = Number(countRes.toArray()[0].c);
             
             const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
-            sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON())));
+            sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
             
             const schemaView = await conn.query(`DESCRIBE ${tableName}`);
             columns = schemaView.toArray().map((r: any) => ({ name: r.column_name, type: r.column_type }));
         }
 
         // Calculate BBox from sample
-        // Helper to recursively extract numbers from coordinates
-        const flattenCoords = (coords: any): number[] => {
-            if (!Array.isArray(coords)) return [];
-            if (coords.length === 0) return [];
-            // If it's a number, wrap it (shouldn't happen with correct GeoJSON if starting from array)
-            if (typeof coords[0] === 'number') return coords;
-            return coords.reduce((acc, val) => acc.concat(flattenCoords(val)), []);
+        // Helper to recursively extract numbers from coordinates (Iterative/In-place to avoid OOM)
+        const flattenCoords = (coords: any, result: number[] = []) => {
+            if (!coords) return result;
+            if (typeof coords[0] === 'number') {
+                for (let i = 0; i < coords.length; i++) {
+                    result.push(coords[i]);
+                }
+                return result;
+            }
+            if (Array.isArray(coords)) {
+                for (let i = 0; i < coords.length; i++) {
+                    flattenCoords(coords[i], result);
+                }
+            }
+            return result;
         };
 
         const geomCol = columns.find(c => c.name === 'geometry' || c.name === 'wkb_geometry');
         if (geomCol && sampleRows.length > 0) {
+             console.log("Analyzing BBox...");
              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
              sampleRows.forEach(row => {
                  const g = row[geomCol.name];
@@ -213,6 +229,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
              if (minX !== Infinity) {
                  bbox = [minX, minY, maxX, maxY];
              }
+             console.log("BBox calculated:", bbox);
         }
         
         return {
@@ -227,7 +244,23 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
         };
 
     } finally {
-        await conn.close();
-        // keep DB alive for reuse
+        // Cleanup resources to prevent memory leaks in WASM
+        try {
+            await conn.query(`DROP VIEW IF EXISTS ${tableName}`);
+            await conn.query(`DROP TABLE IF EXISTS raw_json`);
+            if (tempViewName) {
+                await conn.query(`DROP VIEW IF EXISTS ${tempViewName}`);
+            }
+            await conn.close();
+        } catch (e) {
+            console.warn("Error during cleanup", e);
+        }
+
+        // AGGRESSIVE CLEANUP: Terminate the worker to free WASM memory
+        // This is necessary because loading large files sequentially causes OOM even with drops.
+        if (db) {
+            await db.terminate();
+            db = null; // Reset global variable
+        }
     }
 }

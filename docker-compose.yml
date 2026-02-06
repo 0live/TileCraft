@@ -30,6 +30,8 @@ services:
       - "8000"
     volumes:
       - ./api:/code
+      - import_data:/tmp/imports
+      - import_data:/tmp/imports
     environment:
       - PYTHONUNBUFFERED=1
     env_file:
@@ -38,7 +40,13 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -174,6 +182,44 @@ services:
       postgis:
         condition: service_healthy
 
+  redis:
+    image: redis:7-alpine
+    container_name: canopy-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    container_name: canopy-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+      - .env.local
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    command: ["celery", "-A", "app.core.celery_app.celery_app", "worker", "--loglevel=info"]
+    volumes:
+      - ./api:/code
+      - import_data:/tmp/imports
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgis:
+        condition: service_healthy
+    networks:
+      - backend
+
 networks:
   frontend:
   backend:
@@ -182,3 +228,4 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  import_data:

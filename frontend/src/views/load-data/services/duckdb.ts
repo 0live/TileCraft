@@ -98,17 +98,17 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  
                  try {
                      // Try to flatten properties
+                     // Note: 'feature.properties.*' can fail if properties is not a strictly defined struct or empty
+                     // Safeguard: Select properties as a struct first
                      await conn.query(`CREATE VIEW ${tableName} AS 
-                        SELECT feature.properties.*, feature.geometry 
+                        SELECT feature.properties, feature.geometry 
                         FROM ${tempView}`);
                  } catch (e) {
-                     console.warn("Could not flatten properties, falling back to raw feature", e);
-                     // Fallback: Just select the feature struct and geometry if possible, or just feature
-                     // If geometry is missing from struct, this might also fail.
+                     console.warn("Could not select properties struct, falling back to raw feature", e);
                      
-                     // Try selecting just feature.* (expands the feature struct)
+                     // Fallback: Just select the feature struct and geometry if possible, or just feature
                      try {
-                        await conn.query(`CREATE VIEW ${tableName} AS SELECT feature.* FROM ${tempView}`);
+                        await conn.query(`CREATE VIEW ${tableName} AS SELECT feature FROM ${tempView}`);
                      } catch (e2) {
                          // Fallback to raw features array if all else fails
                          console.warn("Could not expand feature, reverting to raw", e2);
@@ -129,7 +129,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  rowCount = Number(countRes.toArray()[0].c);
                  
                  // Get Sample
-                 const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
+                 const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 100000`);
                  // Force strict JSON serialization to strip Arrow 'StructRow' wrappers
                  sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
                  
@@ -164,7 +164,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
                  const countRes = await conn.query(`SELECT count(*) as c FROM ${tableName}`);
                  rowCount = Number(countRes.toArray()[0].c);
                  
-                 const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
+                 const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 100000`);
                  sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
                  
                  const schemaView = await conn.query(`DESCRIBE ${tableName}`);
@@ -182,7 +182,7 @@ export async function analyzeFile(file: File): Promise<FileMetadata> {
             const countRes = await conn.query(`SELECT count(*) as c FROM ${tableName}`);
             rowCount = Number(countRes.toArray()[0].c);
             
-            const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 10`);
+            const sampleRes = await conn.query(`SELECT * FROM ${tableName} LIMIT 100000`);
             sampleRows = sampleRes.toArray().map((r: any) => JSON.parse(JSON.stringify(r.toJSON(), replacer)));
             
             const schemaView = await conn.query(`DESCRIBE ${tableName}`);

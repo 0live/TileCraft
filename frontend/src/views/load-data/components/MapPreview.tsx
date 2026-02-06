@@ -96,7 +96,8 @@ export function MapPreview({ data, bbox, type = 'geojson', url, layers }: MapPre
                 paint: {
                     'line-color': '#0080ff',
                     'line-width': 2
-                }
+                },
+                filter: ['==', '$type', 'LineString']
             });
 
             // Point

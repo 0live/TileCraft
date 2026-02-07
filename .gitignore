@@ -4,3 +4,4 @@ local.mk
 .vscode/
 .agent/
 /frontend/node_modules/
+/frontend/dist/

@@ -9,6 +9,7 @@ export interface ImportWizardState {
   file: File | null;
   remoteUrl: string;
   metadata: FileMetadata | null;
+  tableName: string;
   
   // Actions
   setStep: (step: number) => void;
@@ -18,6 +19,7 @@ export interface ImportWizardState {
   setFile: (file: File | null) => void;
   setRemoteUrl: (url: string) => void;
   setMetadata: (metadata: FileMetadata | null) => void;
+  setTableName: (name: string) => void;
   reset: () => void;
 }
 
@@ -27,20 +29,26 @@ export const useImportStore = create<ImportWizardState>((set) => ({
   file: null,
   remoteUrl: '',
   metadata: null,
+  tableName: '',
 
   setStep: (step) => set({ step }),
   nextStep: () => set((state) => ({ step: Math.min(state.step + 1, 3) })),
   prevStep: () => set((state) => ({ step: Math.max(state.step - 1, 1) })),
   setSourceType: (sourceType) => set({ sourceType }),
-  setFile: (file) => set({ file }),
+  setFile: (file) => set({ 
+      file,
+      tableName: file ? file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() : ''
+  }),
   setRemoteUrl: (remoteUrl) => set({ remoteUrl }),
   setMetadata: (metadata) => set({ metadata }),
+  setTableName: (tableName) => set({ tableName }),
   
   reset: () => set({
     step: 1,
     sourceType: 'local',
     file: null,
     remoteUrl: '',
-    metadata: null
+    metadata: null,
+    tableName: ''
   })
 }));

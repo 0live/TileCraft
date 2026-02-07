@@ -8,7 +8,7 @@ import { StepNavigation } from '../components/StepNavigation';
 import { useImportStore } from '../store';
 
 export function Step2Metadata() {
-  const { metadata, setMetadata, nextStep, prevStep } = useImportStore();
+  const { metadata, setMetadata, nextStep, prevStep, tableName, setTableName } = useImportStore();
 
   if (!metadata) return <div>No metadata loaded.</div>;
 
@@ -25,7 +25,20 @@ export function Step2Metadata() {
             <p className="text-muted-foreground">Verify the detected information before proceeding.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">
+                        <Database className="w-4 h-4 mr-2"/> Table Name
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Input 
+                        value={tableName || ''} 
+                        onChange={(e) => setTableName(e.target.value)}
+                    />
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center">

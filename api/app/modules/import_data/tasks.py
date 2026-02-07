@@ -27,10 +27,26 @@ def import_file_task(file_path: str, schema: str, table_name: str):
 
     u = urlparse(str(db_url))
 
-    pg_conn = f"PG:host={u.hostname} port={u.port} user={u.username} password={u.password} dbname={u.path.lstrip('/')}"
+    pg_conn = f"PG:host={u.hostname} port={u.port or 5432} user={u.username} password={u.password} dbname={u.path.lstrip('/')}"
 
-    # Ensure schema exists (worker should do this? or init script did it?)
-    # Init script did it.
+    # Ensure schema exists using psycopg (Sync)
+    try:
+        import psycopg
+
+        # Parse connection params from settings.database_url or use the same logic
+        # psycopg.connect supports the URI format directly
+        # The database_url is usually 'postgresql+psycopg://...' or 'postgresql://...'
+        # We need a standard libpq connection string.
+        conn_str = str(db_url).replace("postgresql+psycopg://", "postgresql://")
+
+        with psycopg.connect(conn_str) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}";')
+                conn.commit()
+                print(f"Ensured schema '{schema}' exists.")
+    except Exception as e:
+        print(f"Failed to ensure schema existence: {e}")
+        # Continue anyway, ogr2ogr might fail if schema doesn't exist but we tried.
 
     # ogr2ogr command
     # ogr2ogr -f "PostgreSQL" PG:"..." source_file -lco SCHEMA=target_schema -lco GEOMETRY_NAME=geometry -nln target_table -overwrite
